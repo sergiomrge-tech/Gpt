@@ -20,14 +20,20 @@ data class Sale(val id: Long,val quoteId: Long,val clientId: Long,val clientName
 data class Company(var name: String="Lotus Distribuidora",var document: String="",var phone: String="",var email: String="",var address: String="",var sellerName: String="",var sellerPhone: String="",var pixKey: String="",var logoUri: String="")
 data class QuoteCalc(val subtotal: Double,val itemDiscounts: Double,val generalDiscount: Double,val charged: Double,val cardFee: Double,val netRevenue: Double,val cogs: Double)
 
+fun isCreditPayment(payment:String):Boolean =
+    payment=="Cartão" || payment=="Crédito à vista" || payment=="Crédito parcelado"
+
 fun calculateQuote(q: Quote): QuoteCalc {
     val raw=q.items.sumOf{it.qty*it.unitPrice}
     val afterItem=q.items.sumOf{it.qty*it.unitPrice*(1.0-it.itemDiscountPercent.coerceIn(0.0,100.0)/100.0)}
     val itemDiscounts=raw-afterItem
     val general=if(q.discountType=="%") afterItem*q.discountValue.coerceIn(0.0,100.0)/100.0 else q.discountValue.coerceAtLeast(0.0).coerceAtMost(afterItem)
     val base=max(0.0,afterItem-general)
-    val rate=if(q.payment=="Cartão") q.cardFeePercent.coerceIn(0.0,99.0)/100.0 else 0.0
-    val charged=if(q.payment=="Cartão"&&q.passCardFee&&rate>0.0) base/(1.0-rate) else base
+
+    // O cliente sempre vê/paga o valor comercial da venda.
+    // Taxas de cartão reduzem apenas o valor líquido recebido pela Lotus.
+    val rate=if(isCreditPayment(q.payment)) q.cardFeePercent.coerceIn(0.0,99.0)/100.0 else 0.0
+    val charged=base
     val fee=charged*rate
     val net=charged-fee
     val cogs=q.items.sumOf{it.qty*it.unitCostSnapshot}
