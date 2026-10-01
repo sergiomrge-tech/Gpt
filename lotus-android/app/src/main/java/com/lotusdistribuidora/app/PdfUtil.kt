@@ -7,6 +7,7 @@ import android.graphics.BitmapFactory
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
+import android.graphics.Path
 import android.graphics.RectF
 import android.graphics.Typeface
 import android.graphics.pdf.PdfDocument
@@ -268,7 +269,9 @@ object PdfUtil {
         documentLabel: String
     ) {
         if (logo != null) {
-            drawBitmapFit(canvas, logo, RectF(26f, 24f, 116f, 79f))
+            drawBitmapFit(canvas, logo, RectF(26f, 20f, 116f, 81f))
+        } else {
+            drawDefaultLotusBrand(canvas)
         }
 
         val companyPaint = textPaint(13.5f, ink, true)
@@ -670,7 +673,58 @@ object PdfUtil {
             } catch (_: Exception) {
             }
         }
-        return LotusBrand.bitmap()
+        return null
+    }
+
+    private fun drawDefaultLotusBrand(canvas: Canvas) {
+        val navy = Color.rgb(20, 36, 60)
+        val copper = Color.rgb(201, 143, 104)
+        val cx = 71f
+        val cy = 42f
+
+        val ring = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = copper
+            style = Paint.Style.STROKE
+            strokeWidth = 1.2f
+        }
+        canvas.drawCircle(cx, cy, 22f, ring)
+
+        val fill = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = navy
+            style = Paint.Style.FILL
+        }
+        val stroke = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = copper
+            style = Paint.Style.STROKE
+            strokeWidth = 1.15f
+        }
+
+        fun petal(angle: Float, width: Float, height: Float) {
+            canvas.save()
+            canvas.rotate(angle, cx, cy + 7f)
+            val p = Path().apply {
+                moveTo(cx, cy + 14f)
+                cubicTo(cx - width, cy + 3f, cx - width * .65f, cy - height, cx, cy - height)
+                cubicTo(cx + width * .65f, cy - height, cx + width, cy + 3f, cx, cy + 14f)
+                close()
+            }
+            canvas.drawPath(p, fill)
+            canvas.drawPath(p, stroke)
+            canvas.restore()
+        }
+
+        petal(0f, 8f, 21f)
+        petal(-30f, 7.5f, 19f)
+        petal(30f, 7.5f, 19f)
+        petal(-55f, 7f, 16f)
+        petal(55f, 7f, 16f)
+
+        val brand = textPaint(9.8f, copper, false, Paint.Align.CENTER)
+        canvas.drawText("L O T U S", cx, 70f, brand)
+        val dist = textPaint(4.6f, navy, true, Paint.Align.CENTER)
+        canvas.drawText("DISTRIBUIDORA", cx, 77f, dist)
+        val sub = textPaint(2.9f, navy, false, Paint.Align.CENTER)
+        canvas.drawText("PRODUTOS PARA ESTÉTICA PROFISSIONAL", cx, 82f, sub)
     }
 
     private fun drawBitmapFit(canvas: Canvas, bitmap: Bitmap, box: RectF) {
