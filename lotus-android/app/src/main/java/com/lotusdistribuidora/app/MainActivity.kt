@@ -218,7 +218,21 @@ private fun DataCard(content:@Composable ColumnScope.()->Unit){
 
 @Composable
 private fun Field(label:String,value:String,modifier:Modifier=Modifier.fillMaxWidth(),keyboard:KeyboardType=KeyboardType.Text,singleLine:Boolean=true,onChange:(String)->Unit){
-    OutlinedTextField(value=value,onValueChange=onChange,label={Text(label)},modifier=modifier,shape=RoundedCornerShape(16.dp),singleLine=singleLine,keyboardOptions=KeyboardOptions(keyboardType=keyboard))
+    OutlinedTextField(
+        value=value,
+        onValueChange=onChange,
+        label={Text(label)},
+        modifier=modifier,
+        shape=RoundedCornerShape(18.dp),
+        singleLine=singleLine,
+        keyboardOptions=KeyboardOptions(keyboardType=keyboard),
+        colors=OutlinedTextFieldDefaults.colors(
+            focusedBorderColor=Rose,
+            focusedLabelColor=Rose,
+            cursorColor=Rose,
+            unfocusedBorderColor=Color(0xFFE4D6DE)
+        )
+    )
 }
 
 @Composable
@@ -390,27 +404,79 @@ private fun ProductsScreen(store:LotusStore){
     var id by remember{mutableLongStateOf(0L)}
     var supplier by remember{mutableStateOf("")};var name by remember{mutableStateOf("")};var sku by remember{mutableStateOf("")}
     var stock by remember{mutableStateOf("")};var minStock by remember{mutableStateOf("")};var cost by remember{mutableStateOf("")};var price by remember{mutableStateOf("")}
+    var search by remember{mutableStateOf("")}
     fun clear(){id=0;supplier="";name="";sku="";stock="";minStock="";cost="";price=""}
     val profit=price.num()-cost.num()
     val margin=if(price.num()>0)profit/price.num()*100 else 0.0
+    val stockCapital=store.products.sumOf{it.stock*it.cost}
+    val low=store.products.count{it.stock<=it.minStock}
+    val filtered=store.products.filter{
+        search.isBlank() || it.name.contains(search,true) || it.supplier.contains(search,true) || it.sku.contains(search,true)
+    }.sortedBy{it.name}
     @Suppress("UNUSED_EXPRESSION") version
 
-    LazyColumn(Modifier.fillMaxSize().padding(16.dp),verticalArrangement=Arrangement.spacedBy(10.dp)){
-        item{SectionTitle("Produtos e estoque","Fornecedor, custo, revenda e lucro no mesmo cadastro")}
+    LazyColumn(Modifier.fillMaxSize().padding(16.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){
+        item{SectionTitle("Produtos e estoque","Controle de fornecedor, custo, revenda e margem")}
+        item{
+            Row(horizontalArrangement=Arrangement.spacedBy(10.dp)){
+                PremiumMetricCard("Produtos",store.products.size.toString(),"cadastrados",Blush,Plum,Modifier.weight(1f))
+                PremiumMetricCard("Estoque",stockCapital.money(),"${low} baixo(s)",Color.White,Plum,Modifier.weight(1f))
+            }
+        }
+        item{
+            Field("Buscar produto, fornecedor ou SKU",search){search=it}
+        }
         item{FormCard{
-            Field("Fornecedor",supplier){supplier=it};Field("Produto",name){name=it};Field("Código / SKU",sku){sku=it}
-            Row(horizontalArrangement=Arrangement.spacedBy(8.dp)){Field("Estoque",stock,Modifier.weight(1f),KeyboardType.Number){stock=it};Field("Estoque mínimo",minStock,Modifier.weight(1f),KeyboardType.Number){minStock=it}}
-            Row(horizontalArrangement=Arrangement.spacedBy(8.dp)){Field("Valor pago",cost,Modifier.weight(1f),KeyboardType.Decimal){cost=it};Field("Preço de revenda",price,Modifier.weight(1f),KeyboardType.Decimal){price=it}}
-            Surface(color=Lilac.copy(alpha=.55f),shape=RoundedCornerShape(16.dp)){Row(Modifier.fillMaxWidth().padding(12.dp),horizontalArrangement=Arrangement.SpaceBetween){Text("Lucro/unid. "+profit.money(),fontWeight=FontWeight.SemiBold,color=Plum);Text(String.format(Locale("pt","BR"),"%.1f%%",margin),color=Rose,fontWeight=FontWeight.Bold)}}
+            Text(if(id==0L)"Cadastrar produto" else "Editar produto",fontWeight=FontWeight.Bold,color=Plum,fontSize=18.sp)
+            Field("Fornecedor",supplier){supplier=it}
+            Field("Produto",name){name=it}
+            Field("Código / SKU",sku){sku=it}
             Row(horizontalArrangement=Arrangement.spacedBy(8.dp)){
-                Button(onClick={if(name.isNotBlank()){store.upsertProduct(Product(if(id==0L)System.currentTimeMillis() else id,supplier.trim(),name.trim(),sku.trim(),stock.intNum(),minStock.intNum(),cost.num(),price.num()));version++;clear()}},modifier=Modifier.weight(1f)){Text(if(id==0L)"Cadastrar produto" else "Salvar alterações")}
-                if(id!=0L)OutlinedButton(onClick={clear()}){Text("Cancelar")}
+                Field("Estoque",stock,Modifier.weight(1f),KeyboardType.Number){stock=it}
+                Field("Estoque mínimo",minStock,Modifier.weight(1f),KeyboardType.Number){minStock=it}
+            }
+            Row(horizontalArrangement=Arrangement.spacedBy(8.dp)){
+                Field("Valor pago",cost,Modifier.weight(1f),KeyboardType.Decimal){cost=it}
+                Field("Preço de revenda",price,Modifier.weight(1f),KeyboardType.Decimal){price=it}
+            }
+            Surface(color=Lilac,shape=RoundedCornerShape(18.dp)){
+                Row(Modifier.fillMaxWidth().padding(14.dp),horizontalArrangement=Arrangement.SpaceBetween){
+                    Column{Text("Lucro por unidade",fontSize=11.sp,color=Muted);Text(profit.money(),fontWeight=FontWeight.Bold,color=Plum)}
+                    Column(horizontalAlignment=Alignment.End){Text("Margem",fontSize=11.sp,color=Muted);Text(String.format(Locale("pt","BR"),"%.1f%%",margin),color=Rose,fontWeight=FontWeight.Bold)}
+                }
+            }
+            Row(horizontalArrangement=Arrangement.spacedBy(8.dp)){
+                Button(
+                    onClick={
+                        if(name.isNotBlank()){
+                            store.upsertProduct(Product(if(id==0L)System.currentTimeMillis() else id,supplier.trim(),name.trim(),sku.trim(),stock.intNum(),minStock.intNum(),cost.num(),price.num()))
+                            version++;clear()
+                        }
+                    },
+                    modifier=Modifier.weight(1f),
+                    shape=RoundedCornerShape(16.dp)
+                ){Text(if(id==0L)"Salvar produto" else "Salvar alterações")}
+                if(id!=0L)OutlinedButton(onClick={clear()},shape=RoundedCornerShape(16.dp)){Text("Cancelar")}
             }
         }}
-        item{Text("Produtos cadastrados",fontWeight=FontWeight.Bold,color=Plum,fontSize=18.sp)}
-        items(store.products.sortedBy{it.name}){p->DataCard{
+        item{
             Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){
-                Column(Modifier.weight(1f)){Text(p.name,fontWeight=FontWeight.Bold);Text(p.supplier.ifBlank{"Fornecedor não informado"},color=Rose,fontSize=13.sp);Text("Estoque "+p.stock+" • Custo "+p.cost.money()+" • Venda "+p.price.money(),fontSize=13.sp);Text("Lucro/unid. "+(p.price-p.cost).money(),color=Success,fontWeight=FontWeight.SemiBold)}
+                Text("Produtos cadastrados",Modifier.weight(1f),fontWeight=FontWeight.Bold,color=Plum,fontSize=18.sp)
+                Surface(color=Blush,shape=RoundedCornerShape(50)){Text("${filtered.size}",Modifier.padding(horizontal=10.dp,vertical=4.dp),fontSize=12.sp,color=Rose,fontWeight=FontWeight.Bold)}
+            }
+        }
+        items(filtered){p->DataCard{
+            Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){
+                Surface(color=if(p.stock<=p.minStock)Color(0xFFFFE8EA) else Blush,shape=RoundedCornerShape(16.dp)){
+                    Icon(Icons.Default.Inventory2,null,tint=if(p.stock<=p.minStock)Color(0xFFB64752) else Rose,modifier=Modifier.padding(10.dp))
+                }
+                Spacer(Modifier.width(10.dp))
+                Column(Modifier.weight(1f)){
+                    Text(p.name,fontWeight=FontWeight.Bold,color=Ink)
+                    Text(p.supplier.ifBlank{"Fornecedor não informado"},color=Rose,fontSize=12.sp)
+                    Text("Estoque ${p.stock} • Custo ${p.cost.money()} • Venda ${p.price.money()}",fontSize=12.sp,color=Muted)
+                    Text("Lucro/unid. ${(p.price-p.cost).money()}",color=Success,fontWeight=FontWeight.SemiBold,fontSize=12.sp)
+                }
                 TextButton(onClick={id=p.id;supplier=p.supplier;name=p.name;sku=p.sku;stock=p.stock.toString();minStock=p.minStock.toString();cost=p.cost.toString().replace('.',',');price=p.price.toString().replace('.',',')}){Text("Editar")}
             }
         }}
@@ -423,26 +489,78 @@ private fun ClientsScreen(store:LotusStore){
     var id by remember{mutableLongStateOf(0L)}
     var name by remember{mutableStateOf("")};var phone by remember{mutableStateOf("")};var cpf by remember{mutableStateOf("")};var email by remember{mutableStateOf("")};var profession by remember{mutableStateOf("")}
     var cep by remember{mutableStateOf("")};var street by remember{mutableStateOf("")};var number by remember{mutableStateOf("")};var complement by remember{mutableStateOf("")};var district by remember{mutableStateOf("")};var city by remember{mutableStateOf("")};var state by remember{mutableStateOf("")};var notes by remember{mutableStateOf("")}
+    var search by remember{mutableStateOf("")}
     fun clear(){id=0;name="";phone="";cpf="";email="";profession="";cep="";street="";number="";complement="";district="";city="";state="";notes=""}
+    val filtered=store.clients.filter{
+        search.isBlank() || it.name.contains(search,true) || it.phone.contains(search,true) || it.profession.contains(search,true) || it.city.contains(search,true)
+    }.sortedBy{it.name}
     @Suppress("UNUSED_EXPRESSION") version
 
-    LazyColumn(Modifier.fillMaxSize().padding(16.dp),verticalArrangement=Arrangement.spacedBy(10.dp)){
-        item{SectionTitle("Clientes","Dados completos para orçamento, venda e relacionamento")}
+    LazyColumn(Modifier.fillMaxSize().padding(16.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){
+        item{SectionTitle("Clientes","Cadastro completo e histórico comercial")}
+        item{
+            Row(horizontalArrangement=Arrangement.spacedBy(10.dp)){
+                PremiumMetricCard("Clientes",store.clients.size.toString(),"cadastrados",Blush,Plum,Modifier.weight(1f))
+                PremiumMetricCard("Com vendas",store.sales.map{it.clientId}.distinct().size.toString(),"clientes ativos",Color.White,Plum,Modifier.weight(1f))
+            }
+        }
+        item{Field("Buscar cliente, telefone, profissão ou cidade",search){search=it}}
         item{FormCard{
-            Field("Nome completo",name){name=it};Field("Telefone / WhatsApp",phone){phone=it};Field("CPF",cpf){cpf=it};Field("E-mail",email,keyboard=KeyboardType.Email){email=it};Field("Profissão",profession){profession=it}
-            Text("Endereço",fontWeight=FontWeight.SemiBold,color=Plum);Field("CEP",cep){cep=it};Field("Logradouro",street){street=it}
-            Row(horizontalArrangement=Arrangement.spacedBy(8.dp)){Field("Número",number,Modifier.weight(1f)){number=it};Field("Complemento",complement,Modifier.weight(1f)){complement=it}}
-            Field("Bairro",district){district=it};Row(horizontalArrangement=Arrangement.spacedBy(8.dp)){Field("Cidade",city,Modifier.weight(1f)){city=it};Field("UF",state,Modifier.width(90.dp)){state=it.take(2).uppercase()}}
+            Text(if(id==0L)"Novo cliente" else "Editar cliente",fontWeight=FontWeight.Bold,color=Plum,fontSize=18.sp)
+            Field("Nome completo",name){name=it}
+            Field("Telefone / WhatsApp",phone){phone=it}
+            Row(horizontalArrangement=Arrangement.spacedBy(8.dp)){
+                Field("CPF",cpf,Modifier.weight(1f)){cpf=it}
+                Field("Profissão",profession,Modifier.weight(1f)){profession=it}
+            }
+            Field("E-mail",email,keyboard=KeyboardType.Email){email=it}
+            Text("Endereço",fontWeight=FontWeight.SemiBold,color=Plum)
+            Row(horizontalArrangement=Arrangement.spacedBy(8.dp)){
+                Field("CEP",cep,Modifier.weight(1f)){cep=it}
+                Field("Número",number,Modifier.weight(.65f)){number=it}
+            }
+            Field("Logradouro",street){street=it}
+            Field("Complemento",complement){complement=it}
+            Field("Bairro",district){district=it}
+            Row(horizontalArrangement=Arrangement.spacedBy(8.dp)){
+                Field("Cidade",city,Modifier.weight(1f)){city=it}
+                Field("UF",state,Modifier.width(90.dp)){state=it.take(2).uppercase()}
+            }
             Field("Observações",notes,singleLine=false){notes=it}
             Row(horizontalArrangement=Arrangement.spacedBy(8.dp)){
-                Button(onClick={if(name.isNotBlank()){store.upsertClient(Client(if(id==0L)System.currentTimeMillis() else id,name,phone,cpf,email,profession,cep,street,number,complement,district,city,state,notes));version++;clear()}},modifier=Modifier.weight(1f)){Text(if(id==0L)"Cadastrar cliente" else "Salvar alterações")}
-                if(id!=0L)OutlinedButton(onClick={clear()}){Text("Cancelar")}
+                Button(
+                    onClick={
+                        if(name.isNotBlank()){
+                            store.upsertClient(Client(if(id==0L)System.currentTimeMillis() else id,name,phone,cpf,email,profession,cep,street,number,complement,district,city,state,notes))
+                            version++;clear()
+                        }
+                    },
+                    modifier=Modifier.weight(1f),
+                    shape=RoundedCornerShape(16.dp)
+                ){Text(if(id==0L)"Salvar cliente" else "Salvar alterações")}
+                if(id!=0L)OutlinedButton(onClick={clear()},shape=RoundedCornerShape(16.dp)){Text("Cancelar")}
             }
         }}
-        item{Text("Clientes cadastrados",fontWeight=FontWeight.Bold,color=Plum,fontSize=18.sp)}
-        items(store.clients.sortedBy{it.name}){c->DataCard{
+        item{
             Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){
-                Column(Modifier.weight(1f)){Text(c.name,fontWeight=FontWeight.Bold);Text(c.phone,color=Rose);Text(listOf(c.profession,c.city,c.state).filter{it.isNotBlank()}.joinToString(" • "),fontSize=13.sp)}
+                Text("Clientes cadastrados",Modifier.weight(1f),fontWeight=FontWeight.Bold,color=Plum,fontSize=18.sp)
+                Surface(color=Blush,shape=RoundedCornerShape(50)){Text("${filtered.size}",Modifier.padding(horizontal=10.dp,vertical=4.dp),fontSize=12.sp,color=Rose,fontWeight=FontWeight.Bold)}
+            }
+        }
+        items(filtered){c->DataCard{
+            val clientSales=store.sales.filter{it.clientId==c.id}
+            val spent=clientSales.sumOf{it.chargedTotal}
+            Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){
+                Surface(color=Lilac,shape=CircleShape){
+                    Text(c.name.trim().take(1).uppercase().ifBlank{"C"},Modifier.padding(12.dp),fontWeight=FontWeight.Bold,color=Plum)
+                }
+                Spacer(Modifier.width(10.dp))
+                Column(Modifier.weight(1f)){
+                    Text(c.name,fontWeight=FontWeight.Bold,color=Ink)
+                    Text(c.phone.ifBlank{"Telefone não informado"},color=Rose,fontSize=12.sp)
+                    Text(listOf(c.profession,c.city,c.state).filter{it.isNotBlank()}.joinToString(" • "),fontSize=12.sp,color=Muted)
+                    if(clientSales.isNotEmpty())Text("${clientSales.size} compra(s) • ${spent.money()}",fontSize=12.sp,color=Success,fontWeight=FontWeight.SemiBold)
+                }
                 TextButton(onClick={id=c.id;name=c.name;phone=c.phone;cpf=c.cpf;email=c.email;profession=c.profession;cep=c.cep;street=c.street;number=c.number;complement=c.complement;district=c.district;city=c.city;state=c.state;notes=c.notes}){Text("Editar")}
             }
         }}
