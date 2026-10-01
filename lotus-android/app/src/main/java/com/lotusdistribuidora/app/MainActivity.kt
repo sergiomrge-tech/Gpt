@@ -148,7 +148,7 @@ private fun LotusBottomBar(
     Box(
         Modifier.fillMaxWidth().background(
             Brush.horizontalGradient(listOf(Color(0xFFC7667E),Color(0xFFA74966)))
-        ).navigationBarsPadding().padding(horizontal=8.dp,vertical=7.dp)
+        ).navigationBarsPadding().padding(horizontal=8.dp,vertical=4.dp)
     ){
         Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceAround,verticalAlignment=Alignment.CenterVertically){
             BottomNavItem("Início",Icons.Default.Home,section==Section.DASH){onSection(Section.DASH)}
@@ -158,12 +158,12 @@ private fun LotusBottomBar(
                 horizontalAlignment=Alignment.CenterHorizontally
             ){
                 Surface(color=Color.White,shape=CircleShape,shadowElevation=5.dp){
-                    Box(Modifier.size(48.dp),contentAlignment=Alignment.Center){
-                        Icon(Icons.Default.Add,null,tint=DeepRose,modifier=Modifier.size(28.dp))
+                    Box(Modifier.size(44.dp),contentAlignment=Alignment.Center){
+                        Icon(Icons.Default.Add,null,tint=DeepRose,modifier=Modifier.size(25.dp))
                     }
                 }
                 Spacer(Modifier.height(2.dp))
-                Text("Novo",fontSize=10.sp,color=Color.White,fontWeight=FontWeight.SemiBold)
+                Text("Novo",fontSize=9.sp,color=Color.White,fontWeight=FontWeight.SemiBold)
             }
             BottomNavItem("Estoque",Icons.Default.Inventory2,section==Section.PRODUCTS){onSection(Section.PRODUCTS)}
             BottomNavItem("Mais",Icons.Default.MoreHoriz,section==Section.QUOTES||section==Section.SALES||section==Section.COMPANY){onMore()}
@@ -183,7 +183,7 @@ private fun BottomNavItem(label:String,icon:androidx.compose.ui.graphics.vector.
         ){
             Icon(icon,null,tint=Color.White,modifier=Modifier.padding(horizontal=10.dp,vertical=5.dp).size(20.dp))
         }
-        Text(label,fontSize=10.sp,color=Color.White,fontWeight=if(selected)FontWeight.Bold else FontWeight.Medium)
+        Text(label,fontSize=9.sp,color=Color.White,fontWeight=if(selected)FontWeight.Bold else FontWeight.Medium)
     }
 }
 
@@ -318,20 +318,22 @@ private fun DashboardScreen(store:LotusStore,onNavigate:(Section)->Unit){
             Text("Olá, $sellerFirst!",fontSize=24.sp,fontWeight=FontWeight.Bold,color=Plum)
             Text("Seja bem-vinda!",fontSize=14.sp,color=Rose)
             Spacer(Modifier.height(10.dp))
-            Surface(
-                color=Color.White,
-                shape=RoundedCornerShape(18.dp),
-                shadowElevation=1.dp,
-                modifier=Modifier.fillMaxWidth()
-            ){
-                Row(
-                    Modifier.padding(horizontal=14.dp,vertical=11.dp),
-                    verticalAlignment=Alignment.CenterVertically,
-                    horizontalArrangement=Arrangement.Center
+            Box(Modifier.fillMaxWidth(),contentAlignment=Alignment.Center){
+                Surface(
+                    color=Color.White,
+                    shape=RoundedCornerShape(18.dp),
+                    shadowElevation=1.dp,
+                    modifier=Modifier.width(238.dp)
                 ){
-                    Text(monthName,fontWeight=FontWeight.SemiBold,color=Plum)
-                    Spacer(Modifier.width(8.dp))
-                    Icon(Icons.Default.KeyboardArrowDown,null,tint=Rose,modifier=Modifier.size(18.dp))
+                    Row(
+                        Modifier.padding(horizontal=14.dp,vertical=9.dp),
+                        verticalAlignment=Alignment.CenterVertically,
+                        horizontalArrangement=Arrangement.Center
+                    ){
+                        Text(monthName,fontWeight=FontWeight.SemiBold,color=Plum,fontSize=13.sp)
+                        Spacer(Modifier.width(8.dp))
+                        Icon(Icons.Default.KeyboardArrowDown,null,tint=Rose,modifier=Modifier.size(17.dp))
+                    }
                 }
             }
         }
@@ -353,8 +355,8 @@ private fun DashboardScreen(store:LotusStore,onNavigate:(Section)->Unit){
         }
         item{
             Row(horizontalArrangement=Arrangement.spacedBy(10.dp)){
-                SmallStatusCard("Orçamentos","$pendingQuotes pendente(s)",Icons.Default.ReceiptLong,Modifier.weight(1f)){onNavigate(Section.QUOTES)}
-                SmallStatusCard("Estoque baixo","$low produto(s)",Icons.Default.Inventory2,Modifier.weight(1f)){onNavigate(Section.PRODUCTS)}
+                SmallStatusCard("Orçamentos","$pendingQuotes pendentes",Icons.Default.ReceiptLong,Modifier.weight(1f)){onNavigate(Section.QUOTES)}
+                SmallStatusCard("Estoque baixo","$low produtos",Icons.Default.Inventory2,Modifier.weight(1f)){onNavigate(Section.PRODUCTS)}
             }
         }
         item{
@@ -444,20 +446,21 @@ private fun SoftMetricCard(label:String,value:String,caption:String,modifier:Mod
 private fun CompactQuickTile(label:String,icon:androidx.compose.ui.graphics.vector.ImageVector,modifier:Modifier=Modifier,onClick:()->Unit){
     Card(
         onClick=onClick,
-        modifier=modifier,
+        modifier=modifier.height(88.dp),
         shape=RoundedCornerShape(18.dp),
         colors=CardDefaults.cardColors(containerColor=Color.White),
         elevation=CardDefaults.cardElevation(2.dp)
     ){
         Column(
-            Modifier.padding(vertical=11.dp,horizontal=4.dp),
-            horizontalAlignment=Alignment.CenterHorizontally
+            Modifier.fillMaxSize().padding(vertical=9.dp,horizontal=3.dp),
+            horizontalAlignment=Alignment.CenterHorizontally,
+            verticalArrangement=Arrangement.Center
         ){
-            Surface(color=Blush,shape=RoundedCornerShape(13.dp)){
-                Icon(icon,null,tint=DeepRose,modifier=Modifier.padding(8.dp).size(20.dp))
+            Surface(color=Blush,shape=RoundedCornerShape(12.dp)){
+                Icon(icon,null,tint=DeepRose,modifier=Modifier.padding(7.dp).size(18.dp))
             }
-            Spacer(Modifier.height(6.dp))
-            Text(label,fontSize=10.sp,fontWeight=FontWeight.SemiBold,color=Plum,maxLines=1)
+            Spacer(Modifier.height(5.dp))
+            Text(label,fontSize=9.5.sp,fontWeight=FontWeight.SemiBold,color=Plum,maxLines=1)
         }
     }
 }
@@ -477,11 +480,23 @@ private fun PremiumMetricCard(label:String,value:String,caption:String,bg:Color,
 
 @Composable
 private fun SmallStatusCard(label:String,value:String,icon:androidx.compose.ui.graphics.vector.ImageVector,modifier:Modifier=Modifier,onClick:()->Unit){
-    Card(onClick=onClick,modifier=modifier,shape=RoundedCornerShape(22.dp),colors=CardDefaults.cardColors(containerColor=Color.White),elevation=CardDefaults.cardElevation(2.dp)){
-        Row(Modifier.padding(14.dp),verticalAlignment=Alignment.CenterVertically){
-            Surface(color=Blush,shape=RoundedCornerShape(14.dp)){Icon(icon,null,tint=Rose,modifier=Modifier.padding(9.dp))}
-            Spacer(Modifier.width(10.dp))
-            Column{Text(label,fontSize=12.sp,color=Muted);Text(value,fontWeight=FontWeight.Bold,color=Plum)}
+    Card(
+        onClick=onClick,
+        modifier=modifier.height(76.dp),
+        shape=RoundedCornerShape(20.dp),
+        colors=CardDefaults.cardColors(containerColor=Color.White),
+        elevation=CardDefaults.cardElevation(2.dp)
+    ){
+        Row(Modifier.fillMaxSize().padding(horizontal=12.dp),verticalAlignment=Alignment.CenterVertically){
+            Surface(color=Blush,shape=RoundedCornerShape(13.dp)){
+                Icon(icon,null,tint=Rose,modifier=Modifier.padding(8.dp).size(20.dp))
+            }
+            Spacer(Modifier.width(9.dp))
+            Column(Modifier.weight(1f)){
+                Text(label,fontSize=11.sp,color=Muted,maxLines=1)
+                Spacer(Modifier.height(2.dp))
+                Text(value,fontWeight=FontWeight.Bold,color=Plum,fontSize=13.sp,maxLines=1)
+            }
         }
     }
 }
