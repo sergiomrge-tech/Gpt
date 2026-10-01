@@ -28,6 +28,16 @@ jobs:
         with:
           gradle-version: '8.7'
 
+      - name: Normalize Lotus logo for Android
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq imagemagick
+          SRC="lotus-android/app/src/main/res/drawable-nodpi/lotus_logo.png"
+          TMP="lotus-android/app/src/main/res/drawable-nodpi/lotus_logo_fixed.png"
+          convert "$SRC" -strip -colorspace sRGB -alpha off -type TrueColor PNG24:"$TMP"
+          mv "$TMP" "$SRC"
+          file "$SRC"
+
       - name: Build debug APK
         run: gradle -p lotus-android --stacktrace assembleDebug
 
