@@ -28,6 +28,12 @@ jobs:
         with:
           gradle-version: '8.7'
 
+      - name: Set update version 0.6.1
+        run: |
+          sed -i 's/versionCode = 11/versionCode = 12/' lotus-android/app/build.gradle.kts
+          sed -i 's/versionName = "0.6.0"/versionName = "0.6.1"/' lotus-android/app/build.gradle.kts
+          grep -E 'versionCode|versionName' lotus-android/app/build.gradle.kts
+
       - name: Build debug APK
         run: gradle -p lotus-android --stacktrace assembleDebug
 
@@ -65,7 +71,7 @@ jobs:
       - name: Upload UI screenshot
         uses: actions/upload-artifact@v4
         with:
-          name: Sistema-Lotus-v0.6.0-QA
+          name: Sistema-Lotus-v0.6.1-QA
           path: |
             lotus-home.png
             lotus-clients.png
@@ -81,6 +87,6 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: Sistema-Lotus-v0.6.0-APK
+          name: Sistema-Lotus-v0.6.1-APK
           path: lotus-android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
