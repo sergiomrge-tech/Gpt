@@ -4,9 +4,9 @@ import android.content.Context
 import androidx.test.core.app.ActivityScenario
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import kotlinx.coroutines.runBlocking
 import org.junit.Test
 import org.junit.runner.RunWith
-import kotlinx.coroutines.runBlocking
 
 @RunWith(AndroidJUnit4::class)
 class MainActivitySmokeTest {
@@ -17,6 +17,13 @@ class MainActivitySmokeTest {
                 check(!activity.isFinishing) { "MainActivity finished during startup" }
             }
         }
+    }
+
+    @Test
+    fun officialLogoDecodes() {
+        val bitmap=LotusBrand.bitmap()
+        check(bitmap!=null) { "Official Lotus logo failed to decode" }
+        check(bitmap.width>=150 && bitmap.height>=100) { "Official Lotus logo has invalid dimensions" }
     }
 
     @Test
@@ -43,6 +50,7 @@ class MainActivitySmokeTest {
         val bytes=file.inputStream().use{it.readNBytes(2)}
         check(bytes.size==2 && bytes[0].toInt()==0xFF-256 && bytes[1].toInt()==0xD8-256){"Invalid JPEG header"}
     }
+
     @Test
     fun cepLookupFillsKnownAddress() = runBlocking {
         val address=CepService.lookup("01001000")
