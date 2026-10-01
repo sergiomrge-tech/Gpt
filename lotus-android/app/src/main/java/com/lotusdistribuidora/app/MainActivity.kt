@@ -7,15 +7,29 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Inventory2
+import androidx.compose.material.icons.filled.MoreHoriz
+import androidx.compose.material.icons.filled.People
+import androidx.compose.material.icons.filled.ReceiptLong
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.ShoppingBag
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -25,11 +39,14 @@ import java.util.Calendar
 import java.util.Locale
 
 private val Rose=Color(0xFFB65C7A)
+private val DeepRose=Color(0xFF9D4567)
 private val Plum=Color(0xFF6F3D5E)
-private val Lilac=Color(0xFFEBDDF1)
+private val Lilac=Color(0xFFF0E5F4)
+private val Blush=Color(0xFFFFEEF3)
 private val Champagne=Color(0xFFF2DFC0)
-private val Ivory=Color(0xFFFFF8FB)
+private val Ivory=Color(0xFFFFF9FB)
 private val Ink=Color(0xFF322730)
+private val Muted=Color(0xFF806B77)
 private val Success=Color(0xFF477A67)
 
 class MainActivity:ComponentActivity(){
@@ -54,23 +71,53 @@ private enum class Section(val title:String){DASH("Painel"),PRODUCTS("Produtos")
 @Composable
 private fun LotusApp(store:LotusStore){
     var section by remember{mutableStateOf(Section.DASH)}
+    var quickActions by remember{mutableStateOf(false)}
+    var moreMenu by remember{mutableStateOf(false)}
+
     Scaffold(
         containerColor=Ivory,
-        topBar={
-            Column(Modifier.background(Ivory)){
-                TopAppBar(
-                    title={Column{Text("Lotus Distribuidora",fontWeight=FontWeight.Bold,color=Plum);Text("Gestão comercial e financeira",fontSize=12.sp,color=Rose)}},
-                    colors=TopAppBarDefaults.topAppBarColors(containerColor=Ivory)
+        topBar={ LotusPremiumHeader(store) },
+        bottomBar={
+            NavigationBar(
+                containerColor=Color.White,
+                tonalElevation=8.dp
+            ){
+                NavigationBarItem(
+                    selected=section==Section.DASH,
+                    onClick={section=Section.DASH},
+                    icon={Icon(Icons.Default.Home,null)},
+                    label={Text("Início")}
                 )
-                ScrollableTabRow(selectedTabIndex=section.ordinal,edgePadding=10.dp,containerColor=Ivory,contentColor=Rose){
-                    Section.entries.forEach{s->Tab(selected=s==section,onClick={section=s},text={Text(s.title)})}
-                }
+                NavigationBarItem(
+                    selected=section==Section.CLIENTS,
+                    onClick={section=Section.CLIENTS},
+                    icon={Icon(Icons.Default.People,null)},
+                    label={Text("Clientes")}
+                )
+                NavigationBarItem(
+                    selected=false,
+                    onClick={quickActions=true},
+                    icon={Box(Modifier.size(38.dp).clip(CircleShape).background(Rose),contentAlignment=Alignment.Center){Icon(Icons.Default.Add,null,tint=Color.White)}},
+                    label={Text("Novo")}
+                )
+                NavigationBarItem(
+                    selected=section==Section.PRODUCTS,
+                    onClick={section=Section.PRODUCTS},
+                    icon={Icon(Icons.Default.Inventory2,null)},
+                    label={Text("Estoque")}
+                )
+                NavigationBarItem(
+                    selected=section==Section.SALES || section==Section.COMPANY || section==Section.QUOTES,
+                    onClick={moreMenu=true},
+                    icon={Icon(Icons.Default.MoreHoriz,null)},
+                    label={Text("Mais")}
+                )
             }
         }
     ){pad->
         Box(Modifier.padding(pad).fillMaxSize()){
             when(section){
-                Section.DASH->DashboardScreen(store)
+                Section.DASH->DashboardScreen(store,onNavigate={section=it})
                 Section.PRODUCTS->ProductsScreen(store)
                 Section.CLIENTS->ClientsScreen(store)
                 Section.QUOTES->QuotesScreen(store)
@@ -79,25 +126,92 @@ private fun LotusApp(store:LotusStore){
             }
         }
     }
+
+    if(quickActions){
+        AlertDialog(
+            onDismissRequest={quickActions=false},
+            title={Text("Criar novo",color=Plum,fontWeight=FontWeight.Bold)},
+            text={
+                Column(verticalArrangement=Arrangement.spacedBy(8.dp)){
+                    PremiumActionButton("Novo orçamento",Icons.Default.ReceiptLong){quickActions=false;section=Section.QUOTES}
+                    PremiumActionButton("Nova venda",Icons.Default.ShoppingBag){quickActions=false;section=Section.QUOTES}
+                    PremiumActionButton("Novo cliente",Icons.Default.People){quickActions=false;section=Section.CLIENTS}
+                    PremiumActionButton("Novo produto",Icons.Default.Inventory2){quickActions=false;section=Section.PRODUCTS}
+                }
+            },
+            confirmButton={}
+        )
+    }
+
+    if(moreMenu){
+        AlertDialog(
+            onDismissRequest={moreMenu=false},
+            title={Text("Mais opções",color=Plum,fontWeight=FontWeight.Bold)},
+            text={
+                Column(verticalArrangement=Arrangement.spacedBy(8.dp)){
+                    PremiumActionButton("Orçamentos",Icons.Default.ReceiptLong){moreMenu=false;section=Section.QUOTES}
+                    PremiumActionButton("Vendas",Icons.Default.ShoppingBag){moreMenu=false;section=Section.SALES}
+                    PremiumActionButton("Dados da empresa",Icons.Default.Settings){moreMenu=false;section=Section.COMPANY}
+                }
+            },
+            confirmButton={}
+        )
+    }
+}
+
+@Composable
+private fun LotusPremiumHeader(store:LotusStore){
+    Surface(color=Ivory,shadowElevation=1.dp){
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal=16.dp,vertical=10.dp),
+            verticalAlignment=Alignment.CenterVertically
+        ){
+            Image(
+                painter=painterResource(R.drawable.lotus_logo),
+                contentDescription="Lotus Distribuidora",
+                modifier=Modifier.width(104.dp).height(58.dp),
+                contentScale=ContentScale.Fit
+            )
+            Spacer(Modifier.width(10.dp))
+            Column(Modifier.weight(1f)){
+                Text("Lotus Distribuidora",fontWeight=FontWeight.Bold,color=Plum,fontSize=18.sp)
+                Text("Gestão comercial e financeira",fontSize=11.sp,color=Rose)
+            }
+        }
+    }
+}
+
+@Composable
+private fun PremiumActionButton(label:String,icon:androidx.compose.ui.graphics.vector.ImageVector,onClick:()->Unit){
+    OutlinedButton(
+        onClick=onClick,
+        modifier=Modifier.fillMaxWidth(),
+        shape=RoundedCornerShape(16.dp),
+        colors=ButtonDefaults.outlinedButtonColors(contentColor=Plum)
+    ){
+        Icon(icon,null)
+        Spacer(Modifier.width(10.dp))
+        Text(label,Modifier.weight(1f))
+    }
 }
 
 @Composable
 private fun SectionTitle(title:String,subtitle:String){
-    Text(title,fontSize=26.sp,fontWeight=FontWeight.Bold,color=Plum)
-    Text(subtitle,fontSize=14.sp,color=Rose)
+    Text(title,fontSize=25.sp,fontWeight=FontWeight.Bold,color=Plum)
+    Text(subtitle,fontSize=13.sp,color=Muted)
     Spacer(Modifier.height(14.dp))
 }
 
 @Composable
 private fun FormCard(content:@Composable ColumnScope.()->Unit){
-    Card(shape=RoundedCornerShape(24.dp),colors=CardDefaults.cardColors(containerColor=Color.White),elevation=CardDefaults.cardElevation(2.dp)){
+    Card(shape=RoundedCornerShape(26.dp),colors=CardDefaults.cardColors(containerColor=Color.White),elevation=CardDefaults.cardElevation(3.dp)){
         Column(Modifier.fillMaxWidth().padding(16.dp),verticalArrangement=Arrangement.spacedBy(10.dp),content=content)
     }
 }
 
 @Composable
 private fun DataCard(content:@Composable ColumnScope.()->Unit){
-    Card(shape=RoundedCornerShape(20.dp),colors=CardDefaults.cardColors(containerColor=Color.White),elevation=CardDefaults.cardElevation(1.dp)){
+    Card(shape=RoundedCornerShape(22.dp),colors=CardDefaults.cardColors(containerColor=Color.White),elevation=CardDefaults.cardElevation(2.dp)){
         Column(Modifier.fillMaxWidth().padding(14.dp),verticalArrangement=Arrangement.spacedBy(4.dp),content=content)
     }
 }
@@ -115,9 +229,12 @@ private fun Metric(label:String,value:String,modifier:Modifier=Modifier){
 }
 
 @Composable
-private fun DashboardScreen(store:LotusStore){
+private fun DashboardScreen(store:LotusStore,onNavigate:(Section)->Unit){
     val now=Calendar.getInstance()
-    val monthSales=store.sales.filter{val c=Calendar.getInstance().apply{timeInMillis=it.createdAt};c.get(Calendar.MONTH)==now.get(Calendar.MONTH)&&c.get(Calendar.YEAR)==now.get(Calendar.YEAR)}
+    val monthSales=store.sales.filter{
+        val c=Calendar.getInstance().apply{timeInMillis=it.createdAt}
+        c.get(Calendar.MONTH)==now.get(Calendar.MONTH)&&c.get(Calendar.YEAR)==now.get(Calendar.YEAR)
+    }
     val count=monthSales.size
     val qty=monthSales.sumOf{s->s.items.sumOf{it.qty}}
     val gross=monthSales.sumOf{it.chargedTotal}
@@ -130,18 +247,140 @@ private fun DashboardScreen(store:LotusStore){
     val margin=if(net>0)profit/net*100 else 0.0
     val stockCapital=store.products.sumOf{it.stock*it.cost}
     val low=store.products.count{it.stock<=it.minStock}
+    val pendingQuotes=store.quotes.count{!it.finalized}
     val soldByProduct=monthSales.flatMap{it.items}.groupBy{it.productName}.mapValues{e->e.value.sumOf{it.qty}}
     val topProduct=soldByProduct.maxByOrNull{it.value}?.let{it.key+" ("+it.value+")"}?:"—"
+    val sellerFirst=store.company.sellerName.trim().substringBefore(" ").takeIf{it.isNotBlank()}
+    val monthName=java.text.SimpleDateFormat("MMMM yyyy",Locale("pt","BR")).format(now.time)
+        .replaceFirstChar{if(it.isLowerCase())it.titlecase(Locale("pt","BR")) else it.toString()}
 
-    LazyColumn(Modifier.fillMaxSize().padding(16.dp),verticalArrangement=Arrangement.spacedBy(10.dp)){
-        item{SectionTitle("Visão do mês","Resultados calculados automaticamente pelas vendas finalizadas")}
-        item{Row(horizontalArrangement=Arrangement.spacedBy(8.dp)){Metric("Vendas",count.toString(),Modifier.weight(1f));Metric("Produtos vendidos",qty.toString(),Modifier.weight(1f))}}
-        item{Row(horizontalArrangement=Arrangement.spacedBy(8.dp)){Metric("Faturamento bruto",gross.money(),Modifier.weight(1f));Metric("Faturamento líquido",net.money(),Modifier.weight(1f))}}
-        item{Row(horizontalArrangement=Arrangement.spacedBy(8.dp)){Metric("CMV",cogs.money(),Modifier.weight(1f));Metric("Lucro líquido",profit.money(),Modifier.weight(1f))}}
-        item{Row(horizontalArrangement=Arrangement.spacedBy(8.dp)){Metric("Taxas cartão",fees.money(),Modifier.weight(1f));Metric("Descontos",discounts.money(),Modifier.weight(1f))}}
-        item{Row(horizontalArrangement=Arrangement.spacedBy(8.dp)){Metric("Ticket médio",ticket.money(),Modifier.weight(1f));Metric("Margem líquida",String.format(Locale("pt","BR"),"%.1f%%",margin),Modifier.weight(1f))}}
-        item{Row(horizontalArrangement=Arrangement.spacedBy(8.dp)){Metric("Capital em estoque",stockCapital.money(),Modifier.weight(1f));Metric("Estoque baixo",low.toString(),Modifier.weight(1f))}}
-        item{Metric("Produto mais vendido",topProduct,Modifier.fillMaxWidth())}
+    LazyColumn(
+        Modifier.fillMaxSize().padding(horizontal=16.dp,vertical=14.dp),
+        verticalArrangement=Arrangement.spacedBy(12.dp)
+    ){
+        item{
+            Text(
+                if(sellerFirst!=null)"Olá, $sellerFirst!" else "Olá! Seja bem-vinda.",
+                fontSize=25.sp,fontWeight=FontWeight.Bold,color=Plum
+            )
+            Text("Acompanhe a Lotus em um só lugar",fontSize=13.sp,color=Muted)
+            Spacer(Modifier.height(12.dp))
+            Surface(color=Color.White,shape=RoundedCornerShape(18.dp),shadowElevation=2.dp){
+                Row(Modifier.fillMaxWidth().padding(12.dp),verticalAlignment=Alignment.CenterVertically){
+                    Text("📅",fontSize=18.sp)
+                    Spacer(Modifier.width(8.dp))
+                    Text(monthName,Modifier.weight(1f),fontWeight=FontWeight.SemiBold,color=Plum)
+                    Text("Visão mensal",fontSize=11.sp,color=Rose)
+                }
+            }
+        }
+        item{
+            Row(horizontalArrangement=Arrangement.spacedBy(10.dp)){
+                PremiumMetricCard("Vendas do mês",gross.money(),"${count} venda(s)",DeepRose,Color.White,Modifier.weight(1f))
+                PremiumMetricCard("Lucro líquido",profit.money(),String.format(Locale("pt","BR"),"%.1f%% margem",margin),Blush,Plum,Modifier.weight(1f))
+            }
+        }
+        item{
+            Row(horizontalArrangement=Arrangement.spacedBy(10.dp)){
+                SmallStatusCard("Orçamentos","$pendingQuotes pendente(s)",Icons.Default.ReceiptLong,Modifier.weight(1f)){onNavigate(Section.QUOTES)}
+                SmallStatusCard("Estoque baixo","$low produto(s)",Icons.Default.Inventory2,Modifier.weight(1f)){onNavigate(Section.PRODUCTS)}
+            }
+        }
+        item{
+            Text("Acesso rápido",fontWeight=FontWeight.Bold,color=Plum,fontSize=18.sp)
+            Spacer(Modifier.height(4.dp))
+            Row(horizontalArrangement=Arrangement.spacedBy(10.dp)){
+                QuickTile("Novo orçamento",Icons.Default.ReceiptLong,Modifier.weight(1f)){onNavigate(Section.QUOTES)}
+                QuickTile("Nova venda",Icons.Default.ShoppingBag,Modifier.weight(1f)){onNavigate(Section.QUOTES)}
+            }
+            Spacer(Modifier.height(10.dp))
+            Row(horizontalArrangement=Arrangement.spacedBy(10.dp)){
+                QuickTile("Cliente",Icons.Default.People,Modifier.weight(1f)){onNavigate(Section.CLIENTS)}
+                QuickTile("Produto",Icons.Default.Inventory2,Modifier.weight(1f)){onNavigate(Section.PRODUCTS)}
+            }
+        }
+        item{
+            Text("Resumo financeiro",fontWeight=FontWeight.Bold,color=Plum,fontSize=18.sp)
+            Spacer(Modifier.height(6.dp))
+            DataCard{
+                PremiumLine("Faturamento líquido",net.money())
+                PremiumLine("CMV",cogs.money())
+                PremiumLine("Taxas de cartão",fees.money())
+                PremiumLine("Descontos",discounts.money())
+                PremiumLine("Ticket médio",ticket.money())
+                PremiumLine("Capital em estoque",stockCapital.money())
+                PremiumLine("Produtos vendidos",qty.toString())
+                PremiumLine("Mais vendido",topProduct)
+            }
+        }
+        if(monthSales.isNotEmpty()){
+            item{
+                Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){
+                    Text("Vendas recentes",Modifier.weight(1f),fontWeight=FontWeight.Bold,color=Plum,fontSize=18.sp)
+                    TextButton(onClick={onNavigate(Section.SALES)}){Text("Ver todas")}
+                }
+            }
+            items(monthSales.take(4)){sale->
+                DataCard{
+                    Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){
+                        Surface(color=Blush,shape=CircleShape){
+                            Icon(Icons.Default.ShoppingBag,null,tint=Rose,modifier=Modifier.padding(10.dp))
+                        }
+                        Spacer(Modifier.width(10.dp))
+                        Column(Modifier.weight(1f)){
+                            Text(sale.clientName.ifBlank{"Cliente"},fontWeight=FontWeight.SemiBold,color=Ink)
+                            Text(sale.chargedTotal.money(),fontSize=13.sp,color=Rose)
+                        }
+                        Surface(color=Color(0xFFE7F3ED),shape=RoundedCornerShape(50)){
+                            Text("Venda",Modifier.padding(horizontal=10.dp,vertical=5.dp),fontSize=11.sp,color=Success,fontWeight=FontWeight.Bold)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun PremiumMetricCard(label:String,value:String,caption:String,bg:Color,fg:Color,modifier:Modifier=Modifier){
+    Card(modifier,shape=RoundedCornerShape(24.dp),colors=CardDefaults.cardColors(containerColor=bg),elevation=CardDefaults.cardElevation(3.dp)){
+        Column(Modifier.padding(16.dp)){
+            Text(label,fontSize=12.sp,color=fg.copy(alpha=.85f))
+            Spacer(Modifier.height(6.dp))
+            Text(value,fontSize=21.sp,fontWeight=FontWeight.Bold,color=fg)
+            Spacer(Modifier.height(4.dp))
+            Text(caption,fontSize=11.sp,color=fg.copy(alpha=.78f))
+        }
+    }
+}
+
+@Composable
+private fun SmallStatusCard(label:String,value:String,icon:androidx.compose.ui.graphics.vector.ImageVector,modifier:Modifier=Modifier,onClick:()->Unit){
+    Card(onClick=onClick,modifier=modifier,shape=RoundedCornerShape(22.dp),colors=CardDefaults.cardColors(containerColor=Color.White),elevation=CardDefaults.cardElevation(2.dp)){
+        Row(Modifier.padding(14.dp),verticalAlignment=Alignment.CenterVertically){
+            Surface(color=Blush,shape=RoundedCornerShape(14.dp)){Icon(icon,null,tint=Rose,modifier=Modifier.padding(9.dp))}
+            Spacer(Modifier.width(10.dp))
+            Column{Text(label,fontSize=12.sp,color=Muted);Text(value,fontWeight=FontWeight.Bold,color=Plum)}
+        }
+    }
+}
+
+@Composable
+private fun QuickTile(label:String,icon:androidx.compose.ui.graphics.vector.ImageVector,modifier:Modifier=Modifier,onClick:()->Unit){
+    Card(onClick=onClick,modifier=modifier,shape=RoundedCornerShape(22.dp),colors=CardDefaults.cardColors(containerColor=Color.White),elevation=CardDefaults.cardElevation(2.dp)){
+        Column(Modifier.padding(14.dp),horizontalAlignment=Alignment.CenterHorizontally){
+            Surface(color=Lilac,shape=RoundedCornerShape(16.dp)){Icon(icon,null,tint=Plum,modifier=Modifier.padding(10.dp))}
+            Spacer(Modifier.height(8.dp))
+            Text(label,fontSize=12.sp,fontWeight=FontWeight.SemiBold,color=Plum)
+        }
+    }
+}
+
+@Composable
+private fun PremiumLine(label:String,value:String){
+    Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){
+        Text(label,Modifier.weight(1f),fontSize=13.sp,color=Muted)
+        Text(value,fontWeight=FontWeight.SemiBold,color=Plum,fontSize=13.sp)
     }
 }
 
