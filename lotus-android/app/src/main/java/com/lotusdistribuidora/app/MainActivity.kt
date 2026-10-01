@@ -29,8 +29,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -166,16 +166,30 @@ private fun LotusPremiumHeader(store:LotusStore){
             Modifier.fillMaxWidth().padding(horizontal=16.dp,vertical=10.dp),
             verticalAlignment=Alignment.CenterVertically
         ){
-            Image(
-                painter=painterResource(R.drawable.lotus_logo),
-                contentDescription="Lotus Distribuidora",
-                modifier=Modifier.width(104.dp).height(58.dp),
-                contentScale=ContentScale.Fit
-            )
+            LotusLogoImage(Modifier.width(104.dp).height(58.dp))
             Spacer(Modifier.width(10.dp))
             Column(Modifier.weight(1f)){
                 Text("Lotus Distribuidora",fontWeight=FontWeight.Bold,color=Plum,fontSize=18.sp)
                 Text("Gestão comercial e financeira",fontSize=11.sp,color=Rose)
+            }
+        }
+    }
+}
+
+@Composable
+private fun LotusLogoImage(modifier:Modifier=Modifier){
+    val image=remember{LotusBrand.bitmap()?.asImageBitmap()}
+    if(image!=null){
+        Image(
+            bitmap=image,
+            contentDescription="Lotus Distribuidora",
+            modifier=modifier,
+            contentScale=ContentScale.Fit
+        )
+    }else{
+        Surface(modifier=modifier,shape=RoundedCornerShape(16.dp),color=Blush){
+            Box(contentAlignment=Alignment.Center){
+                Text("LOTUS",fontWeight=FontWeight.Bold,color=Plum)
             }
         }
     }
@@ -776,12 +790,7 @@ private fun CompanyScreen(store:LotusStore){
         item{
             Card(shape=RoundedCornerShape(26.dp),colors=CardDefaults.cardColors(containerColor=Blush),elevation=CardDefaults.cardElevation(2.dp)){
                 Column(Modifier.fillMaxWidth().padding(18.dp),horizontalAlignment=Alignment.CenterHorizontally){
-                    Image(
-                        painter=painterResource(R.drawable.lotus_logo),
-                        contentDescription="Logo Lotus",
-                        modifier=Modifier.width(180.dp).height(95.dp),
-                        contentScale=ContentScale.Fit
-                    )
+                    LotusLogoImage(Modifier.width(180.dp).height(95.dp))
                     Text(company.name.ifBlank{"Lotus Distribuidora"},fontWeight=FontWeight.Bold,color=Plum,fontSize=18.sp)
                     Text("Produtos para estética profissional",fontSize=12.sp,color=Rose)
                 }
