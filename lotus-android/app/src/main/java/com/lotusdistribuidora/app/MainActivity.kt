@@ -809,18 +809,46 @@ private fun QuotesScreen(store:LotusStore){
     var payment by remember{mutableStateOf("Pix")}
     var installments by remember{mutableStateOf("1")}
     var cardFee by remember{mutableStateOf("")}
-    var passFee by remember{mutableStateOf(false)}
     var notes by remember{mutableStateOf("")}
     var msg by remember{mutableStateOf("")}
+
+    var pendingFinalize by remember{mutableStateOf<Quote?>(null)}
+    var checkoutPayment by remember{mutableStateOf("Pix")}
+    var checkoutInstallments by remember{mutableStateOf("2")}
+    var checkoutFee by remember{mutableStateOf("")}
+
     @Suppress("UNUSED_EXPRESSION") version
 
-    fun clear(){editId=0;createdAt=0;clientId=0;clientName="";qItems.clear();discountType="R$";discountValue="";payment="Pix";installments="1";cardFee="";passFee=false;notes="";msg=""}
-    fun currentQuote()=Quote(if(editId==0L)System.currentTimeMillis() else editId,clientId,clientName,qItems.map{it.copy()}.toMutableList(),discountType,discountValue.num(),payment,installments.intNum().coerceAtLeast(1),cardFee.num(),passFee,notes,if(createdAt==0L)System.currentTimeMillis() else createdAt,false)
+    fun clear(){
+        editId=0;createdAt=0;clientId=0;clientName="";qItems.clear()
+        discountType="R$";discountValue="";payment="Pix";installments="1"
+        cardFee="";notes="";msg=""
+    }
+
+    fun currentQuote()=Quote(
+        if(editId==0L)System.currentTimeMillis() else editId,
+        clientId,
+        clientName,
+        qItems.map{it.copy()}.toMutableList(),
+        discountType,
+        discountValue.num(),
+        payment,
+        if(payment=="Crédito parcelado")installments.intNum().coerceAtLeast(2) else 1,
+        if(isCreditPayment(payment))cardFee.num() else 0.0,
+        false,
+        notes,
+        if(createdAt==0L)System.currentTimeMillis() else createdAt,
+        false
+    )
+
     val calc=calculateQuote(currentQuote())
     val pending=store.quotes.count{!it.finalized}
     val closed=store.quotes.count{it.finalized}
 
-    LazyColumn(Modifier.fillMaxSize().padding(16.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){
+    LazyColumn(
+        Modifier.fillMaxSize().padding(16.dp),
+        verticalArrangement=Arrangement.spacedBy(12.dp)
+    ){
         item{
             Text(if(editId==0L)"Novo orçamento" else "Editar orçamento",fontSize=20.sp,fontWeight=FontWeight.Bold,color=Plum)
             Text("Monte, ajuste e gere PDF ou JPG antes de finalizar.",fontSize=12.sp,color=Muted)
@@ -833,19 +861,31 @@ private fun QuotesScreen(store:LotusStore){
         }
         item{FormCard{
             Text("Dados do orçamento",fontWeight=FontWeight.Bold,color=Plum,fontSize=18.sp)
-            Selector("Selecionar cliente",clientName,store.clients.map{it.name}){i->store.clients.getOrNull(i)?.let{clientId=it.id;clientName=it.name}}
+            Selector("Selecionar cliente",clientName,store.clients.map{it.name}){i->
+                store.clients.getOrNull(i)?.let{clientId=it.id;clientName=it.name}
+            }
+
             Text("Produtos",fontWeight=FontWeight.Bold,color=Plum)
             Selector("Adicionar produto","",store.products.map{it.name+" • estoque "+it.stock}){i->
                 store.products.getOrNull(i)?.let{p->
                     val ix=qItems.indexOfFirst{it.productId==p.id}
-                    if(ix>=0){val old=qItems[ix];qItems[ix]=old.copy(qty=old.qty+1)}
-                    else qItems.add(QuoteItem(p.id,p.name,1,p.price,0.0,p.cost,p.sku))
+                    if(ix>=0){
+                        val old=qItems[ix]
+                        qItems[ix]=old.copy(qty=old.qty+1)
+                    }else{
+                        qItems.add(QuoteItem(p.id,p.name,1,p.price,0.0,p.cost,p.sku))
+                    }
                 }
             }
+
             qItems.forEachIndexed{i,item->
                 Surface(color=Blush,shape=RoundedCornerShape(18.dp)){
                     Column(Modifier.padding(12.dp),verticalArrangement=Arrangement.spacedBy(8.dp)){
-                        Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween,verticalAlignment=Alignment.CenterVertically){
+                        Row(
+                            Modifier.fillMaxWidth(),
+                            horizontalArrangement=Arrangement.SpaceBetween,
+                            verticalAlignment=Alignment.CenterVertically
+                        ){
                             Column(Modifier.weight(1f)){
                                 Text(item.productName,fontWeight=FontWeight.Bold,color=Ink)
                                 if(item.productCode.isNotBlank())Text("SKU ${item.productCode}",fontSize=11.sp,color=Muted)
@@ -853,76 +893,128 @@ private fun QuotesScreen(store:LotusStore){
                             TextButton(onClick={qItems.removeAt(i)}){Text("Remover")}
                         }
                         Row(horizontalArrangement=Arrangement.spacedBy(6.dp)){
-                            Field("Qtd.",item.qty.toString(),Modifier.weight(.7f),KeyboardType.Number){v->qItems[i]=item.copy(qty=v.intNum().coerceAtLeast(0))}
-                            Field("Preço",item.unitPrice.toString().replace('.',','),Modifier.weight(1f),KeyboardType.Decimal){v->qItems[i]=item.copy(unitPrice=v.num())}
-                            Field("Desc. %",item.itemDiscountPercent.toString().replace('.',','),Modifier.weight(1f),KeyboardType.Decimal){v->qItems[i]=item.copy(itemDiscountPercent=v.num())}
+                            Field("Qtd.",item.qty.toString(),Modifier.weight(.7f),KeyboardType.Number){v->
+                                qItems[i]=item.copy(qty=v.intNum().coerceAtLeast(0))
+                            }
+                            Field("Preço",item.unitPrice.toString().replace('.',','),Modifier.weight(1f),KeyboardType.Decimal){v->
+                                qItems[i]=item.copy(unitPrice=v.num())
+                            }
+                            Field("Desc. %",item.itemDiscountPercent.toString().replace('.',','),Modifier.weight(1f),KeyboardType.Decimal){v->
+                                qItems[i]=item.copy(itemDiscountPercent=v.num())
+                            }
                         }
                     }
                 }
             }
+
             Text("Desconto geral",fontWeight=FontWeight.Bold,color=Plum)
             Row(horizontalArrangement=Arrangement.spacedBy(8.dp),verticalAlignment=Alignment.CenterVertically){
                 FilterChip(selected=discountType=="R$",onClick={discountType="R$"},label={Text("R$")})
                 FilterChip(selected=discountType=="%",onClick={discountType="%"},label={Text("%")})
                 Field(if(discountType=="%")"Percentual" else "Valor",discountValue,Modifier.weight(1f),KeyboardType.Decimal){discountValue=it}
             }
-            Text("Pagamento",fontWeight=FontWeight.Bold,color=Plum)
-            Row(horizontalArrangement=Arrangement.spacedBy(8.dp)){
-                FilterChip(selected=payment=="Pix",onClick={payment="Pix"},label={Text("Pix")})
-                FilterChip(selected=payment=="Cartão",onClick={payment="Cartão"},label={Text("Cartão")})
+
+            Text("Condição de pagamento prevista",fontWeight=FontWeight.Bold,color=Plum)
+            Column(verticalArrangement=Arrangement.spacedBy(6.dp)){
+                FilterChip(
+                    selected=payment=="Pix",
+                    onClick={payment="Pix";installments="1";cardFee=""},
+                    label={Text("Pix")}
+                )
+                FilterChip(
+                    selected=payment=="Crédito à vista",
+                    onClick={payment="Crédito à vista";installments="1"},
+                    label={Text("Crédito à vista")}
+                )
+                FilterChip(
+                    selected=payment=="Crédito parcelado",
+                    onClick={payment="Crédito parcelado";if(installments.intNum()<2)installments="2"},
+                    label={Text("Crédito parcelado")}
+                )
             }
-            if(payment=="Cartão"){
+
+            if(isCreditPayment(payment)){
                 Row(horizontalArrangement=Arrangement.spacedBy(8.dp)){
-                    Field("Parcelas",installments,Modifier.weight(1f),KeyboardType.Number){installments=it}
-                    Field("Tarifa %",cardFee,Modifier.weight(1f),KeyboardType.Decimal){cardFee=it}
+                    if(payment=="Crédito parcelado"){
+                        Field("Parcelas",installments,Modifier.weight(1f),KeyboardType.Number){installments=it}
+                    }
+                    Field("Taxa do cartão %",cardFee,Modifier.weight(1f),KeyboardType.Decimal){cardFee=it}
                 }
-                Row(verticalAlignment=Alignment.CenterVertically){
-                    Switch(checked=passFee,onCheckedChange={passFee=it})
-                    Spacer(Modifier.width(8.dp))
-                    Text("Repassar tarifa ao cliente",color=Muted)
-                }
+                Text(
+                    "A taxa é interna: o cliente continua pagando o valor comercial integral.",
+                    fontSize=11.sp,
+                    color=Muted
+                )
             }
+
             Field("Observações",notes,singleLine=false){notes=it}
+
             Surface(color=Lilac,shape=RoundedCornerShape(20.dp)){
                 Column(Modifier.fillMaxWidth().padding(14.dp),verticalArrangement=Arrangement.spacedBy(6.dp)){
                     PremiumLine("Subtotal",calc.subtotal.money())
                     PremiumLine("Descontos",(calc.itemDiscounts+calc.generalDiscount).money())
-                    if(payment=="Cartão")PremiumLine("Tarifa cartão",calc.cardFee.money())
+                    if(isCreditPayment(payment)){
+                        PremiumLine("Taxa do cartão",calc.cardFee.money())
+                        PremiumLine("Líquido previsto",calc.netRevenue.money())
+                    }
                     HorizontalDivider(color=Color(0xFFD9CBD3))
                     Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween){
-                        Text("TOTAL",fontSize=18.sp,fontWeight=FontWeight.Bold,color=Plum)
+                        Text("TOTAL CLIENTE",fontSize=16.sp,fontWeight=FontWeight.Bold,color=Plum)
                         Text(calc.charged.money(),fontSize=22.sp,fontWeight=FontWeight.Bold,color=DeepRose)
                     }
                 }
             }
-            if(msg.isNotBlank())Text(msg,color=if(msg.startsWith("Salvo")||msg.startsWith("Venda"))Success else MaterialTheme.colorScheme.error,fontWeight=FontWeight.SemiBold)
+
+            if(msg.isNotBlank()){
+                Text(
+                    msg,
+                    color=if(msg.startsWith("Venda")||msg.startsWith("Rascunho")||msg.startsWith("Recibo"))Success else MaterialTheme.colorScheme.error,
+                    fontWeight=FontWeight.SemiBold
+                )
+            }
+
             Row(horizontalArrangement=Arrangement.spacedBy(7.dp)){
                 OutlinedButton(
                     onClick={
                         if(clientId==0L||qItems.isEmpty())msg="Selecione cliente e pelo menos um produto."
                         else{
-                            val q=currentQuote();store.upsertQuote(q);editId=q.id;createdAt=q.createdAt;version++;msg="Rascunho salvo."
+                            val q=currentQuote()
+                            store.upsertQuote(q)
+                            editId=q.id
+                            createdAt=q.createdAt
+                            version++
+                            msg="Rascunho salvo."
                         }
                     },
                     modifier=Modifier.weight(1f),
                     shape=RoundedCornerShape(14.dp)
                 ){Text("Salvar",fontSize=11.sp)}
+
                 Button(
                     onClick={
                         if(clientId==0L||qItems.isEmpty())msg="Selecione cliente e pelo menos um produto."
                         else{
-                            val q=currentQuote();store.upsertQuote(q);editId=q.id;createdAt=q.createdAt;version++
+                            val q=currentQuote()
+                            store.upsertQuote(q)
+                            editId=q.id
+                            createdAt=q.createdAt
+                            version++
                             PdfUtil.shareQuote(context,store.company,store.clients.firstOrNull{it.id==q.clientId},q)
                         }
                     },
                     modifier=Modifier.weight(1f),
                     shape=RoundedCornerShape(14.dp)
                 ){Text("PDF",fontSize=11.sp)}
+
                 Button(
                     onClick={
                         if(clientId==0L||qItems.isEmpty())msg="Selecione cliente e pelo menos um produto."
                         else{
-                            val q=currentQuote();store.upsertQuote(q);editId=q.id;createdAt=q.createdAt;version++
+                            val q=currentQuote()
+                            store.upsertQuote(q)
+                            editId=q.id
+                            createdAt=q.createdAt
+                            version++
                             PdfUtil.shareQuoteJpg(context,store.company,store.clients.firstOrNull{it.id==q.clientId},q)
                         }
                     },
@@ -931,27 +1023,179 @@ private fun QuotesScreen(store:LotusStore){
                 ){Text("JPG",fontSize=11.sp)}
             }
         }}
+
         item{Text("Orçamentos salvos",fontWeight=FontWeight.Bold,color=Plum,fontSize=18.sp)}
+
         items(store.quotes){q->DataCard{
             val qc=calculateQuote(q)
             Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){
-                Surface(color=if(q.finalized)Color(0xFFE7F3ED) else Blush,shape=RoundedCornerShape(14.dp)){
-                    Icon(Icons.Default.ReceiptLong,null,tint=if(q.finalized)Success else Rose,modifier=Modifier.padding(9.dp))
+                Surface(
+                    color=if(q.finalized)Color(0xFFE7F3ED) else Blush,
+                    shape=RoundedCornerShape(14.dp)
+                ){
+                    Icon(
+                        Icons.Default.ReceiptLong,
+                        null,
+                        tint=if(q.finalized)Success else Rose,
+                        modifier=Modifier.padding(9.dp)
+                    )
                 }
                 Spacer(Modifier.width(10.dp))
                 Column(Modifier.weight(1f)){
                     Text("#"+q.id.toString().takeLast(6)+" • "+q.clientName,fontWeight=FontWeight.Bold,color=Ink)
-                    Text(qc.charged.money()+" • "+q.payment+(if(q.payment=="Cartão")" "+q.installments+"x" else ""),color=Rose,fontSize=12.sp)
-                    Text(if(q.finalized)"Venda finalizada" else "Editável",color=if(q.finalized)Success else Plum,fontWeight=FontWeight.SemiBold,fontSize=12.sp)
+                    Text(
+                        qc.charged.money()+" • "+q.payment+
+                            (if(q.payment=="Crédito parcelado" || (q.payment=="Cartão"&&q.installments>1))" "+q.installments+"x" else ""),
+                        color=Rose,
+                        fontSize=12.sp
+                    )
+                    Text(
+                        if(q.finalized)"Venda finalizada" else "Editável",
+                        color=if(q.finalized)Success else Plum,
+                        fontWeight=FontWeight.SemiBold,
+                        fontSize=12.sp
+                    )
                 }
             }
+
             Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(4.dp)){
-                if(!q.finalized)TextButton(onClick={editId=q.id;createdAt=q.createdAt;clientId=q.clientId;clientName=q.clientName;qItems.clear();qItems.addAll(q.items.map{it.copy()});discountType=q.discountType;discountValue=q.discountValue.toString().replace('.',',');payment=q.payment;installments=q.installments.toString();cardFee=q.cardFeePercent.toString().replace('.',',');passFee=q.passCardFee;notes=q.notes;msg=""}){Text("Editar")}
-                TextButton(onClick={PdfUtil.shareQuote(context,store.company,store.clients.firstOrNull{it.id==q.clientId},q)}){Text("Gerar PDF")}
-                TextButton(onClick={PdfUtil.shareQuoteJpg(context,store.company,store.clients.firstOrNull{it.id==q.clientId},q)}){Text("JPG")}
-                if(!q.finalized)TextButton(onClick={val err=store.finalizeQuote(q);version++;msg=err?:"Venda finalizada e estoque baixado."}){Text("Finalizar venda")}
+                if(!q.finalized)TextButton(onClick={
+                    editId=q.id
+                    createdAt=q.createdAt
+                    clientId=q.clientId
+                    clientName=q.clientName
+                    qItems.clear()
+                    qItems.addAll(q.items.map{it.copy()})
+                    discountType=q.discountType
+                    discountValue=q.discountValue.toString().replace('.',',')
+                    payment=when{
+                        q.payment=="Cartão"&&q.installments>1->"Crédito parcelado"
+                        q.payment=="Cartão"->"Crédito à vista"
+                        else->q.payment
+                    }
+                    installments=q.installments.toString()
+                    cardFee=q.cardFeePercent.toString().replace('.',',')
+                    notes=q.notes
+                    msg=""
+                }){Text("Editar")}
+
+                TextButton(onClick={
+                    PdfUtil.shareQuote(context,store.company,store.clients.firstOrNull{it.id==q.clientId},q)
+                }){Text("PDF")}
+
+                TextButton(onClick={
+                    PdfUtil.shareQuoteJpg(context,store.company,store.clients.firstOrNull{it.id==q.clientId},q)
+                }){Text("JPG")}
+
+                if(!q.finalized)TextButton(onClick={
+                    pendingFinalize=q
+                    checkoutPayment=when{
+                        q.payment=="Cartão"&&q.installments>1->"Crédito parcelado"
+                        q.payment=="Cartão"->"Crédito à vista"
+                        q.payment=="Crédito à vista"||q.payment=="Crédito parcelado"->q.payment
+                        else->"Pix"
+                    }
+                    checkoutInstallments=(if(q.installments<2)2 else q.installments).toString()
+                    checkoutFee=if(q.cardFeePercent>0.0)q.cardFeePercent.toString().replace('.',',') else ""
+                }){Text("Finalizar venda")}
             }
         }}
+    }
+
+    pendingFinalize?.let{original->
+        val normalizedInstallments=if(checkoutPayment=="Crédito parcelado")checkoutInstallments.intNum().coerceAtLeast(2) else 1
+        val normalizedFee=if(isCreditPayment(checkoutPayment))checkoutFee.num().coerceAtLeast(0.0) else 0.0
+        val preview=original.copy(
+            payment=checkoutPayment,
+            installments=normalizedInstallments,
+            cardFeePercent=normalizedFee,
+            passCardFee=false,
+            finalized=false
+        )
+        val payCalc=calculateQuote(preview)
+
+        AlertDialog(
+            onDismissRequest={pendingFinalize=null},
+            title={Text("Finalizar venda",color=Plum,fontWeight=FontWeight.Bold)},
+            text={
+                Column(verticalArrangement=Arrangement.spacedBy(10.dp)){
+                    Text("Como o cliente pagou?",fontWeight=FontWeight.SemiBold,color=Ink)
+
+                    FilterChip(
+                        selected=checkoutPayment=="Pix",
+                        onClick={checkoutPayment="Pix";checkoutInstallments="1";checkoutFee=""},
+                        label={Text("Pix")}
+                    )
+                    FilterChip(
+                        selected=checkoutPayment=="Crédito à vista",
+                        onClick={checkoutPayment="Crédito à vista";checkoutInstallments="1"},
+                        label={Text("Crédito à vista")}
+                    )
+                    FilterChip(
+                        selected=checkoutPayment=="Crédito parcelado",
+                        onClick={checkoutPayment="Crédito parcelado";if(checkoutInstallments.intNum()<2)checkoutInstallments="2"},
+                        label={Text("Crédito parcelado")}
+                    )
+
+                    if(checkoutPayment=="Crédito parcelado"){
+                        Field("Número de parcelas",checkoutInstallments,keyboard=KeyboardType.Number){checkoutInstallments=it}
+                    }
+
+                    if(isCreditPayment(checkoutPayment)){
+                        Field("Taxa total do cartão %",checkoutFee,keyboard=KeyboardType.Decimal){checkoutFee=it}
+                    }
+
+                    Surface(color=Blush,shape=RoundedCornerShape(18.dp)){
+                        Column(Modifier.fillMaxWidth().padding(14.dp),verticalArrangement=Arrangement.spacedBy(7.dp)){
+                            PremiumLine("Valor pago pelo cliente",payCalc.charged.money())
+                            if(isCreditPayment(checkoutPayment)){
+                                PremiumLine("Taxa do cartão",payCalc.cardFee.money())
+                                HorizontalDivider(color=Color(0xFFE2CAD3))
+                                PremiumLine("Valor líquido recebido",payCalc.netRevenue.money())
+                            }else{
+                                PremiumLine("Valor líquido recebido",payCalc.netRevenue.money())
+                            }
+                        }
+                    }
+
+                    if(isCreditPayment(checkoutPayment)){
+                        Text(
+                            "Exemplo: venda de R$ 500,00 com 10% de taxa = cliente paga R$ 500,00 e a Lotus recebe R$ 450,00 líquidos.",
+                            fontSize=11.sp,
+                            color=Muted
+                        )
+                    }
+                }
+            },
+            confirmButton={
+                Button(onClick={
+                    val finalQuote=preview.copy()
+                    store.upsertQuote(finalQuote)
+                    val error=store.finalizeQuote(finalQuote)
+                    version++
+                    if(error!=null){
+                        msg=error
+                    }else{
+                        msg="Venda finalizada. Recibo gerado com o valor pago pelo cliente."
+                        val sale=store.sales.firstOrNull{it.quoteId==finalQuote.id}
+                        if(sale!=null){
+                            PdfUtil.shareSale(
+                                context,
+                                store.company,
+                                store.clients.firstOrNull{it.id==sale.clientId},
+                                sale
+                            )
+                        }
+                    }
+                    pendingFinalize=null
+                }){
+                    Text("Confirmar e gerar recibo")
+                }
+            },
+            dismissButton={
+                TextButton(onClick={pendingFinalize=null}){Text("Cancelar")}
+            }
+        )
     }
 }
 
