@@ -251,7 +251,7 @@ private fun QuotesScreen(store:LotusStore){
                 store.products.getOrNull(i)?.let{p->
                     val ix=qItems.indexOfFirst{it.productId==p.id}
                     if(ix>=0){val old=qItems[ix];qItems[ix]=old.copy(qty=old.qty+1)}
-                    else qItems.add(QuoteItem(p.id,p.name,1,p.price,0.0,p.cost))
+                    else qItems.add(QuoteItem(p.id,p.name,1,p.price,0.0,p.cost,p.sku))
                 }
             }
             qItems.forEachIndexed{i,item->
@@ -297,7 +297,7 @@ private fun QuotesScreen(store:LotusStore){
             Text(if(q.finalized)"Venda finalizada" else "Editável",color=if(q.finalized)Success else Plum,fontWeight=FontWeight.SemiBold)
             Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(4.dp)){
                 if(!q.finalized)TextButton(onClick={editId=q.id;createdAt=q.createdAt;clientId=q.clientId;clientName=q.clientName;qItems.clear();qItems.addAll(q.items.map{it.copy()});discountType=q.discountType;discountValue=q.discountValue.toString().replace('.',',');payment=q.payment;installments=q.installments.toString();cardFee=q.cardFeePercent.toString().replace('.',',');passFee=q.passCardFee;notes=q.notes;msg=""}){Text("Editar")}
-                TextButton(onClick={PdfUtil.shareQuote(context,store.company,q)}){Text("PDF")}
+                TextButton(onClick={PdfUtil.shareQuote(context,store.company,store.clients.firstOrNull{it.id==q.clientId},q)}){Text("PDF")}
                 if(!q.finalized)TextButton(onClick={val err=store.finalizeQuote(q);version++;msg=err?:"Venda finalizada e estoque baixado."}){Text("Finalizar venda")}
             }
         }}
@@ -318,7 +318,7 @@ private fun SalesScreen(store:LotusStore){
             Text("Líquido: "+s.netRevenue.money()+" • CMV: "+cogs.money())
             Text("Lucro: "+profit.money(),color=if(profit>=0)Success else MaterialTheme.colorScheme.error,fontWeight=FontWeight.Bold)
             Text(s.payment+(if(s.payment=="Cartão")" • "+s.installments+"x • taxa "+s.cardFeePercent+"%" else ""),fontSize=13.sp,color=Rose)
-            TextButton(onClick={PdfUtil.shareSale(context,store.company,s)}){Text("Gerar / enviar recibo PDF")}
+            TextButton(onClick={PdfUtil.shareSale(context,store.company,store.clients.firstOrNull{it.id==s.clientId},s)}){Text("Gerar / enviar recibo PDF")}
         }}
     }
 }
