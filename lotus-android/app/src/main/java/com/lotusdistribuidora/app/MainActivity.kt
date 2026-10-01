@@ -41,7 +41,7 @@ class MainActivity:ComponentActivity(){
 }
 
 @Composable
-private fun LotusTheme(content:@Composable()->Unit){
+private fun LotusTheme(content: @Composable () -> Unit){
     MaterialTheme(
         colorScheme=lightColorScheme(primary=Rose,onPrimary=Color.White,secondary=Plum,tertiary=Champagne,background=Ivory,surface=Color.White,onSurface=Ink,outline=Color(0xFFD9CBD3)),
         content=content
