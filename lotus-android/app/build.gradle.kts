@@ -41,6 +41,7 @@ dependencies {
     implementation("androidx.compose.material3:material3")
     implementation("androidx.compose.material:material-icons-extended")
     implementation("androidx.core:core-ktx:1.13.1")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
     debugImplementation("androidx.compose.ui:ui-tooling")
     androidTestImplementation("androidx.test.ext:junit:1.2.1")
     androidTestImplementation("androidx.test:runner:1.6.2")
