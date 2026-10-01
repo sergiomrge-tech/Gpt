@@ -6,6 +6,7 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import org.junit.Test
 import org.junit.runner.RunWith
+import kotlinx.coroutines.runBlocking
 
 @RunWith(AndroidJUnit4::class)
 class MainActivitySmokeTest {
@@ -41,5 +42,13 @@ class MainActivitySmokeTest {
         check(file.exists() && file.length()>10000){"JPG was not generated"}
         val bytes=file.inputStream().use{it.readNBytes(2)}
         check(bytes.size==2 && bytes[0].toInt()==0xFF-256 && bytes[1].toInt()==0xD8-256){"Invalid JPEG header"}
+    }
+    @Test
+    fun cepLookupFillsKnownAddress() = runBlocking {
+        val address=CepService.lookup("01001000")
+        check(address!=null){"CEP lookup returned null"}
+        check(address.city.equals("São Paulo",ignoreCase=true)){"Unexpected city: ${address.city}"}
+        check(address.state.equals("SP",ignoreCase=true)){"Unexpected state: ${address.state}"}
+        check(address.street.isNotBlank()){"Street was not filled"}
     }
 }
