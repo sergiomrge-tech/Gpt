@@ -11,8 +11,8 @@ android {
         applicationId = "com.lotusdistribuidora.app"
         minSdk = 29
         targetSdk = 35
-        versionCode = 10
-        versionName = "0.5.3"
+        versionCode = 11
+        versionName = "0.6.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -23,6 +23,21 @@ android {
 
     kotlinOptions {
         jvmTarget = "17"
+    }
+
+    signingConfigs {
+        create("lotusUpdate") {
+            storeFile = file("../signing/lotus-update.jks")
+            storePassword = "LotusUpdate2026!Internal"
+            keyAlias = "lotusupdate"
+            keyPassword = "LotusUpdate2026!Internal"
+        }
+    }
+
+    buildTypes {
+        getByName("debug") {
+            signingConfig = signingConfigs.getByName("lotusUpdate")
+        }
     }
 
     buildFeatures { compose = true }
