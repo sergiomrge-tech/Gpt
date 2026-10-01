@@ -592,7 +592,7 @@ object PdfUtil {
             } catch (_: Exception) {
             }
         }
-        return BitmapFactory.decodeResource(context.resources, R.drawable.lotus_logo)
+        return LotusBrand.bitmap()
     }
 
     private fun drawBitmapFit(canvas: Canvas, bitmap: Bitmap, box: RectF) {
