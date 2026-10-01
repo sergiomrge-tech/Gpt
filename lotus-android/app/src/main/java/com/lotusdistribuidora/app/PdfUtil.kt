@@ -70,6 +70,11 @@ object PdfUtil {
     }
 
     fun shareQuoteJpg(context: Context, company: Company, client: Client?, quote: Quote) {
+        val jpg = createQuoteJpg(context, company, client, quote)
+        shareFile(context, jpg, "image/jpeg", "Orçamento - " + company.name, "Enviar orçamento em JPG")
+    }
+
+    fun createQuoteJpg(context: Context, company: Company, client: Client?, quote: Quote): File {
         val calc = calculateQuote(quote)
         val status = if (quote.finalized) "FINALIZADO" else "PENDENTE"
         val remaining = if (quote.finalized) 0.0 else calc.charged
@@ -95,12 +100,11 @@ object PdfUtil {
             notes = quote.notes,
             date = quote.createdAt
         )
-        val jpg = renderPdfToJpeg(
+        return renderPdfToJpeg(
             context,
             pdf,
             "orcamento_lotus_" + quote.id + ".jpg"
         )
-        shareFile(context, jpg, "image/jpeg", "Orçamento - " + company.name, "Enviar orçamento em JPG")
     }
 
     fun shareSale(context: Context, company: Company, client: Client?, sale: Sale) {
