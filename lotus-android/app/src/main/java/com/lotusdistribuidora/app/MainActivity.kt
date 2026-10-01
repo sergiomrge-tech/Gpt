@@ -1020,7 +1020,7 @@ private fun CompanyScreen(store:LotusStore){
         item{
             Card(shape=RoundedCornerShape(26.dp),colors=CardDefaults.cardColors(containerColor=Blush),elevation=CardDefaults.cardElevation(2.dp)){
                 Column(Modifier.fillMaxWidth().padding(18.dp),horizontalAlignment=Alignment.CenterHorizontally){
-                    LotusLogoImage(Modifier.width(180.dp).height(95.dp))
+                    LotusLogoLockup()
                     Text(company.name.ifBlank{"Lotus Distribuidora"},fontWeight=FontWeight.Bold,color=Plum,fontSize=18.sp)
                     Text("Produtos para estética profissional",fontSize=12.sp,color=Rose)
                 }
