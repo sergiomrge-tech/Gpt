@@ -52,6 +52,22 @@ class MainActivitySmokeTest {
     }
 
     @Test
+    fun creditFeeKeepsCustomerTotalAndCalculatesNet() {
+        val quote=Quote(
+            id=500L,clientId=1L,clientName="Cliente",
+            items=mutableListOf(QuoteItem(1L,"Produto",1,500.0,0.0,300.0,"P500")),
+            discountType="R$",discountValue=0.0,
+            payment="Crédito parcelado",installments=3,
+            cardFeePercent=10.0,passCardFee=false,notes="",
+            createdAt=System.currentTimeMillis(),finalized=false
+        )
+        val calc=calculateQuote(quote)
+        check(kotlin.math.abs(calc.charged-500.0)<0.001){"Customer total changed: ${calc.charged}"}
+        check(kotlin.math.abs(calc.cardFee-50.0)<0.001){"Unexpected card fee: ${calc.cardFee}"}
+        check(kotlin.math.abs(calc.netRevenue-450.0)<0.001){"Unexpected net revenue: ${calc.netRevenue}"}
+    }
+
+    @Test
     fun cepLookupFillsKnownAddress() = runBlocking {
         val address=CepService.lookup("01001000")
         check(address!=null){"CEP lookup returned null"}
