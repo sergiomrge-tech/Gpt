@@ -183,6 +183,25 @@ private fun LotusPremiumHeader(store:LotusStore){
 }
 
 @Composable
+private fun LotusLogoImage(modifier:Modifier=Modifier){
+    val image=remember{LotusBrand.bitmap()?.asImageBitmap()}
+    if(image!=null){
+        Image(
+            bitmap=image,
+            contentDescription="Lotus Distribuidora",
+            modifier=modifier,
+            contentScale=ContentScale.Fit
+        )
+    }else{
+        Surface(modifier=modifier,shape=RoundedCornerShape(16.dp),color=Blush){
+            Box(contentAlignment=Alignment.Center){
+                Text("LOTUS",fontWeight=FontWeight.Bold,color=Plum)
+            }
+        }
+    }
+}
+
+@Composable
 private fun PremiumActionButton(label:String,icon:androidx.compose.ui.graphics.vector.ImageVector,onClick:()->Unit){
     OutlinedButton(
         onClick=onClick,
@@ -461,27 +480,6 @@ private fun ProductsScreen(store:LotusStore){
     var supplier by remember{mutableStateOf("")};var name by remember{mutableStateOf("")};var sku by remember{mutableStateOf("")}
     var stock by remember{mutableStateOf("")};var minStock by remember{mutableStateOf("")};var cost by remember{mutableStateOf("")};var price by remember{mutableStateOf("")}
     var search by remember{mutableStateOf("")}
-    var cepStatus by remember{mutableStateOf("")}
-    val cepDigits=cep.filter{it.isDigit()}
-    LaunchedEffect(cepDigits){
-        if(cepDigits.length==8){
-            cepStatus="Buscando CEP..."
-            delay(250)
-            val result=CepService.lookup(cepDigits)
-            if(result!=null){
-                if(result.street.isNotBlank())street=result.street
-                if(result.district.isNotBlank())district=result.district
-                if(result.city.isNotBlank())city=result.city
-                if(result.state.isNotBlank())state=result.state
-                if(complement.isBlank()&&result.complement.isNotBlank())complement=result.complement
-                cepStatus="Endereço preenchido automaticamente"
-            }else{
-                cepStatus="CEP não encontrado"
-            }
-        }else if(cepDigits.length<8){
-            cepStatus=""
-        }
-    }
     fun clear(){id=0;supplier="";name="";sku="";stock="";minStock="";cost="";price=""}
     val profit=price.num()-cost.num()
     val margin=if(price.num()>0)profit/price.num()*100 else 0.0
@@ -567,6 +565,27 @@ private fun ClientsScreen(store:LotusStore){
     var name by remember{mutableStateOf("")};var phone by remember{mutableStateOf("")};var cpf by remember{mutableStateOf("")};var email by remember{mutableStateOf("")};var profession by remember{mutableStateOf("")}
     var cep by remember{mutableStateOf("")};var street by remember{mutableStateOf("")};var number by remember{mutableStateOf("")};var complement by remember{mutableStateOf("")};var district by remember{mutableStateOf("")};var city by remember{mutableStateOf("")};var state by remember{mutableStateOf("")};var notes by remember{mutableStateOf("")}
     var search by remember{mutableStateOf("")}
+    var cepStatus by remember{mutableStateOf("")}
+    val cepDigits=cep.filter{it.isDigit()}
+    LaunchedEffect(cepDigits){
+        if(cepDigits.length==8){
+            cepStatus="Buscando CEP..."
+            delay(250)
+            val result=CepService.lookup(cepDigits)
+            if(result!=null){
+                if(result.street.isNotBlank())street=result.street
+                if(result.district.isNotBlank())district=result.district
+                if(result.city.isNotBlank())city=result.city
+                if(result.state.isNotBlank())state=result.state
+                if(complement.isBlank()&&result.complement.isNotBlank())complement=result.complement
+                cepStatus="Endereço preenchido automaticamente"
+            }else{
+                cepStatus="CEP não encontrado"
+            }
+        }else if(cepDigits.length<8){
+            cepStatus=""
+        }
+    }
     fun clear(){id=0;name="";phone="";cpf="";email="";profession="";cep="";street="";number="";complement="";district="";city="";state="";notes=""}
     val filtered=store.clients.filter{
         search.isBlank() || it.name.contains(search,true) || it.phone.contains(search,true) || it.profession.contains(search,true) || it.city.contains(search,true)
