@@ -10,7 +10,9 @@ import android.graphics.Paint
 import android.graphics.RectF
 import android.graphics.Typeface
 import android.graphics.pdf.PdfDocument
+import android.graphics.pdf.PdfRenderer
 import android.net.Uri
+import android.os.ParcelFileDescriptor
 import androidx.core.content.FileProvider
 import java.io.File
 import java.io.FileOutputStream
@@ -65,6 +67,40 @@ object PdfUtil {
             date = quote.createdAt
         )
         share(context, file, "Orçamento - " + company.name)
+    }
+
+    fun shareQuoteJpg(context: Context, company: Company, client: Client?, quote: Quote) {
+        val calc = calculateQuote(quote)
+        val status = if (quote.finalized) "FINALIZADO" else "PENDENTE"
+        val remaining = if (quote.finalized) 0.0 else calc.charged
+        val pdf = createPdf(
+            context = context,
+            fileName = "orcamento_lotus_" + quote.id + "_jpg_source.pdf",
+            metaTitle = "DADOS DO ORÇAMENTO",
+            documentLabel = "ORÇAMENTO",
+            number = compactNumber(quote.id),
+            company = company,
+            client = client,
+            fallbackClientName = quote.clientName,
+            items = quote.items,
+            payment = quote.payment,
+            installments = quote.installments,
+            cardFeePercent = quote.cardFeePercent,
+            passCardFee = quote.passCardFee,
+            subtotal = calc.subtotal,
+            discount = calc.itemDiscounts + calc.generalDiscount,
+            total = calc.charged,
+            remaining = remaining,
+            status = status,
+            notes = quote.notes,
+            date = quote.createdAt
+        )
+        val jpg = renderPdfToJpeg(
+            context,
+            pdf,
+            "orcamento_lotus_" + quote.id + ".jpg"
+        )
+        shareFile(context, jpg, "image/jpeg", "Orçamento - " + company.name, "Enviar orçamento em JPG")
     }
 
     fun shareSale(context: Context, company: Company, client: Client?, sale: Sale) {
@@ -181,6 +217,44 @@ object PdfUtil {
         pdf.close()
         logo?.recycle()
         return file
+    }
+
+    private fun renderPdfToJpeg(context: Context, pdfFile: File, fileName: String): File {
+        val dir = File(context.cacheDir, "docs").apply { mkdirs() }
+        val output = File(dir, fileName)
+        val descriptor = ParcelFileDescriptor.open(pdfFile, ParcelFileDescriptor.MODE_READ_ONLY)
+        val renderer = PdfRenderer(descriptor)
+        try {
+            val targetWidth = 1240
+            val targetHeight = 1754
+            val pageCount = renderer.pageCount.coerceAtLeast(1)
+            val combined = Bitmap.createBitmap(
+                targetWidth,
+                targetHeight * pageCount,
+                Bitmap.Config.ARGB_8888
+            )
+            val combinedCanvas = Canvas(combined)
+            combinedCanvas.drawColor(Color.WHITE)
+
+            for (i in 0 until pageCount) {
+                val page = renderer.openPage(i)
+                val pageBitmap = Bitmap.createBitmap(targetWidth, targetHeight, Bitmap.Config.ARGB_8888)
+                pageBitmap.eraseColor(Color.WHITE)
+                page.render(pageBitmap, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
+                combinedCanvas.drawBitmap(pageBitmap, 0f, (i * targetHeight).toFloat(), null)
+                pageBitmap.recycle()
+                page.close()
+            }
+
+            FileOutputStream(output).use { out ->
+                combined.compress(Bitmap.CompressFormat.JPEG, 96, out)
+            }
+            combined.recycle()
+        } finally {
+            renderer.close()
+            descriptor.close()
+        }
+        return output
     }
 
     private fun drawHeader(
@@ -693,13 +767,17 @@ object PdfUtil {
     }
 
     private fun share(context: Context, file: File, subject: String) {
+        shareFile(context, file, "application/pdf", subject, "Enviar PDF")
+    }
+
+    private fun shareFile(context: Context, file: File, mimeType: String, subject: String, chooserTitle: String) {
         val uri = FileProvider.getUriForFile(context, context.packageName + ".fileprovider", file)
         val intent = Intent(Intent.ACTION_SEND).apply {
-            type = "application/pdf"
+            type = mimeType
             putExtra(Intent.EXTRA_STREAM, uri)
             putExtra(Intent.EXTRA_SUBJECT, subject)
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
-        context.startActivity(Intent.createChooser(intent, "Enviar PDF"))
+        context.startActivity(Intent.createChooser(intent, chooserTitle))
     }
 }
