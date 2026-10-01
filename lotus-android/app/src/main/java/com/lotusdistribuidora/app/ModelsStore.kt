@@ -19,6 +19,15 @@ data class Quote(val id: Long,var clientId: Long,var clientName: String,var item
 data class Sale(val id: Long,val quoteId: Long,val clientId: Long,val clientName: String,val items: MutableList<QuoteItem>,val payment: String,val installments: Int,val cardFeePercent: Double,val passCardFee: Boolean,val notes: String,val createdAt: Long,val chargedTotal: Double,val cardFeeValue: Double,val netRevenue: Double,val discountAmount: Double)
 data class Company(var name: String="Lotus Distribuidora",var document: String="",var phone: String="",var email: String="",var address: String="",var sellerName: String="",var sellerPhone: String="",var pixKey: String="",var logoUri: String="")
 data class QuoteCalc(val subtotal: Double,val itemDiscounts: Double,val generalDiscount: Double,val charged: Double,val cardFee: Double,val netRevenue: Double,val cogs: Double)
+data class CardSettlement(val paid:Double,val received:Double,val feeValue:Double,val feePercent:Double)
+
+fun calculateCardSettlement(paid:Double,received:Double):CardSettlement{
+    val safePaid=paid.coerceAtLeast(0.0)
+    val safeReceived=received.coerceIn(0.0,safePaid)
+    val fee=(safePaid-safeReceived).coerceAtLeast(0.0)
+    val percent=if(safePaid>0.0) fee/safePaid*100.0 else 0.0
+    return CardSettlement(safePaid,safeReceived,fee,percent)
+}
 
 fun isCreditPayment(payment:String):Boolean =
     payment=="Cartão" || payment=="Crédito à vista" || payment=="Crédito parcelado"
@@ -53,7 +62,7 @@ class LotusStore(private val context: Context) {
     fun upsertQuote(q:Quote){val m=quotes.toMutableList();val i=m.indexOfFirst{it.id==q.id};if(i>=0)m[i]=q else m.add(0,q);quotes=m;saveQuotes()}
     fun saveCompany(c:Company){company=c.copy();prefs.edit().putString("company",companyJson(company).toString()).apply()}
 
-    fun finalizeQuote(q:Quote):String?{
+    fun finalizeQuote(q:Quote,actualPaid:Double?=null,actualNetReceived:Double?=null):String?{
         if(q.finalized)return "Venda já finalizada."
         q.items.forEach{item->
             val p=products.firstOrNull{it.id==item.productId}?:return "Produto não encontrado: "+item.productName
@@ -61,10 +70,46 @@ class LotusStore(private val context: Context) {
             if(p.stock<item.qty)return "Estoque insuficiente: "+item.productName
         }
         val calc=calculateQuote(q)
-        products=products.map{p->val item=q.items.firstOrNull{it.productId==p.id};if(item==null)p else p.copy(stock=p.stock-item.qty)}
+        val paid=(actualPaid?:calc.charged).coerceAtLeast(0.0)
+        if(paid<=0.0)return "Valor pago inválido."
+
+        val settlement=if(isCreditPayment(q.payment)){
+            val received=actualNetReceived?:calc.netRevenue
+            if(received<0.0)return "Valor líquido inválido."
+            if(received>paid)return "O valor líquido não pode ser maior que o valor pago pelo cliente."
+            calculateCardSettlement(paid,received)
+        }else{
+            CardSettlement(paid,paid,0.0,0.0)
+        }
+
+        q.cardFeePercent=settlement.feePercent
+        q.passCardFee=false
+
+        products=products.map{p->
+            val item=q.items.firstOrNull{it.productId==p.id}
+            if(item==null)p else p.copy(stock=p.stock-item.qty)
+        }
+
         q.finalized=true
         upsertQuote(q)
-        val sale=Sale(System.currentTimeMillis(),q.id,q.clientId,q.clientName,q.items.map{it.copy()}.toMutableList(),q.payment,q.installments,q.cardFeePercent,q.passCardFee,q.notes,System.currentTimeMillis(),calc.charged,calc.cardFee,calc.netRevenue,calc.itemDiscounts+calc.generalDiscount)
+
+        val sale=Sale(
+            System.currentTimeMillis(),
+            q.id,
+            q.clientId,
+            q.clientName,
+            q.items.map{it.copy()}.toMutableList(),
+            q.payment,
+            q.installments,
+            settlement.feePercent,
+            false,
+            q.notes,
+            System.currentTimeMillis(),
+            settlement.paid,
+            settlement.feeValue,
+            settlement.received,
+            calc.itemDiscounts+calc.generalDiscount
+        )
         sales=listOf(sale)+sales
         saveProducts();saveQuotes();saveSales()
         return null
