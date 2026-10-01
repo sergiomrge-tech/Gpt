@@ -17,6 +17,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.NotificationsNone
 import androidx.compose.material.icons.filled.KeyboardArrowDown
@@ -37,10 +39,11 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import java.util.Calendar
 import java.util.Locale
@@ -84,7 +87,10 @@ private fun LotusApp(store:LotusStore){
 
     Scaffold(
         containerColor=Ivory,
-        topBar={ LotusPremiumHeader(store) },
+        topBar={
+            if(section==Section.DASH) LotusPremiumHeader(store)
+            else LotusSectionHeader(section.title){section=Section.DASH}
+        },
         bottomBar={
             LotusBottomBar(
                 section=section,
@@ -197,7 +203,7 @@ private fun LotusPremiumHeader(store:LotusStore){
             IconButton(onClick={},modifier=Modifier.align(Alignment.CenterStart)){
                 Icon(Icons.Default.Menu,contentDescription="Menu",tint=Plum)
             }
-            LotusLogoImage(Modifier.width(126.dp).height(92.dp))
+            LotusLogoLockup()
             IconButton(onClick={},modifier=Modifier.align(Alignment.CenterEnd)){
                 Icon(Icons.Default.NotificationsNone,contentDescription="Notificações",tint=Rose)
             }
@@ -206,20 +212,53 @@ private fun LotusPremiumHeader(store:LotusStore){
 }
 
 @Composable
-private fun LotusLogoImage(modifier:Modifier=Modifier){
-    val image=remember{LotusBrand.bitmap()?.asImageBitmap()}
-    if(image!=null){
+private fun LotusLogoLockup(){
+    Column(horizontalAlignment=Alignment.CenterHorizontally,modifier=Modifier.padding(top=4.dp,bottom=4.dp)){
         Image(
-            bitmap=image,
+            painter=painterResource(R.drawable.lotus_mark),
             contentDescription="Lotus Distribuidora",
-            modifier=modifier,
+            modifier=Modifier.width(67.dp).height(58.dp),
             contentScale=ContentScale.Fit
         )
-    }else{
-        Surface(modifier=modifier,shape=RoundedCornerShape(16.dp),color=Blush){
-            Box(contentAlignment=Alignment.Center){
-                Text("LOTUS",fontWeight=FontWeight.Bold,color=Plum)
-            }
+        Text(
+            "LOTUS",
+            color=Color(0xFFC98F68),
+            fontSize=17.sp,
+            fontWeight=FontWeight.Medium,
+            letterSpacing=.32.em,
+            textAlign=TextAlign.Center
+        )
+        Text(
+            "DISTRIBUIDORA",
+            color=Color(0xFF14243C),
+            fontSize=8.sp,
+            fontWeight=FontWeight.Bold,
+            letterSpacing=.20.em
+        )
+        Text(
+            "PRODUTOS PARA ESTÉTICA PROFISSIONAL",
+            color=Color(0xFF14243C),
+            fontSize=5.5.sp,
+            fontWeight=FontWeight.Medium,
+            letterSpacing=.06.em
+        )
+    }
+}
+
+@Composable
+private fun LotusSectionHeader(title:String,onBack:()->Unit){
+    Box(
+        Modifier.fillMaxWidth().background(
+            Brush.horizontalGradient(listOf(Color(0xFFC05C79),Color(0xFFA74363)))
+        ).padding(horizontal=8.dp,vertical=6.dp),
+        contentAlignment=Alignment.Center
+    ){
+        IconButton(onClick=onBack,modifier=Modifier.align(Alignment.CenterStart)){
+            Icon(Icons.Default.ArrowBack,contentDescription="Voltar",tint=Color.White)
+        }
+        Text(title,color=Color.White,fontWeight=FontWeight.Bold,fontSize=18.sp)
+        IconButton(onClick={},modifier=Modifier.align(Alignment.CenterEnd)){
+            Icon(Icons.Default.MoreVert,contentDescription="Mais",tint=Color.White)
         }
     }
 }
@@ -539,7 +578,6 @@ private fun ProductsScreen(store:LotusStore){
     @Suppress("UNUSED_EXPRESSION") version
 
     LazyColumn(Modifier.fillMaxSize().padding(16.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){
-        item{SectionTitle(if(id==0L)"Produto" else "Editar produto","Cadastro completo no padrão Premium Rosé")}
         item{FormCard{
             Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween){
                 listOf("Dados","Estoque","Preços","Fornecedor").forEach{t->
@@ -783,7 +821,10 @@ private fun QuotesScreen(store:LotusStore){
     val closed=store.quotes.count{it.finalized}
 
     LazyColumn(Modifier.fillMaxSize().padding(16.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){
-        item{SectionTitle(if(editId==0L)"Novo orçamento" else "Editar orçamento","Monte, ajuste e envie antes de finalizar a venda")}
+        item{
+            Text(if(editId==0L)"Novo orçamento" else "Editar orçamento",fontSize=20.sp,fontWeight=FontWeight.Bold,color=Plum)
+            Text("Monte, ajuste e gere PDF ou JPG antes de finalizar.",fontSize=12.sp,color=Muted)
+        }
         item{
             Row(horizontalArrangement=Arrangement.spacedBy(10.dp)){
                 PremiumMetricCard("Pendentes",pending.toString(),"editáveis",Blush,Plum,Modifier.weight(1f))
