@@ -505,16 +505,17 @@ object PdfUtil {
     ) {
         val paymentText = buildString {
             append("Forma de pagamento: ")
-            append(payment)
-            if (payment == "Cartão") {
-                append(" • ")
-                append(installments.coerceAtLeast(1))
-                append("x")
-                if (cardFeePercent > 0.0) {
-                    append(" • tarifa ")
-                    append(String.format(Locale("pt", "BR"), "%.2f%%", cardFeePercent))
-                    append(if (passCardFee) " repassada ao cliente" else " absorvida pela empresa")
+            append(
+                when {
+                    payment == "Cartão" && installments > 1 -> "Crédito parcelado"
+                    payment == "Cartão" -> "Crédito à vista"
+                    else -> payment
                 }
+            )
+            if (payment == "Crédito parcelado" || (payment == "Cartão" && installments > 1)) {
+                append(" • ")
+                append(installments.coerceAtLeast(2))
+                append("x")
             }
         }
         drawFitText(canvas, paymentText, LEFT, 638f, RIGHT - LEFT, textPaint(7.4f, ink, true), 6.2f)
