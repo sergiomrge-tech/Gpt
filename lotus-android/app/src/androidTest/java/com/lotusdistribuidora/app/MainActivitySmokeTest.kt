@@ -68,6 +68,15 @@ class MainActivitySmokeTest {
     }
 
     @Test
+    fun cardSettlementCalculatesPercentFromReceivedValue() {
+        val settlement=calculateCardSettlement(500.0,450.0)
+        check(kotlin.math.abs(settlement.paid-500.0)<0.001)
+        check(kotlin.math.abs(settlement.received-450.0)<0.001)
+        check(kotlin.math.abs(settlement.feeValue-50.0)<0.001)
+        check(kotlin.math.abs(settlement.feePercent-10.0)<0.001)
+    }
+
+    @Test
     fun cepLookupFillsKnownAddress() = runBlocking {
         val address=CepService.lookup("01001000")
         check(address!=null){"CEP lookup returned null"}
