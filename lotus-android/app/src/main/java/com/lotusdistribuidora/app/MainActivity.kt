@@ -8,6 +8,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -31,7 +32,9 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.asImageBitmap
@@ -43,15 +46,15 @@ import java.util.Calendar
 import java.util.Locale
 import kotlinx.coroutines.delay
 
-private val Rose=Color(0xFFB65C7A)
-private val DeepRose=Color(0xFF9D4567)
-private val Plum=Color(0xFF6F3D5E)
-private val Lilac=Color(0xFFF0E5F4)
-private val Blush=Color(0xFFFFEEF3)
-private val Champagne=Color(0xFFF2DFC0)
-private val Ivory=Color(0xFFFFF9FB)
+private val Rose=Color(0xFFC05C79)
+private val DeepRose=Color(0xFFA74363)
+private val Plum=Color(0xFF743653)
+private val Lilac=Color(0xFFF7E7EF)
+private val Blush=Color(0xFFFCE8ED)
+private val Champagne=Color(0xFFE6BE92)
+private val Ivory=Color(0xFFFFF7F3)
 private val Ink=Color(0xFF322730)
-private val Muted=Color(0xFF806B77)
+private val Muted=Color(0xFF876C78)
 private val Success=Color(0xFF477A67)
 
 class MainActivity:ComponentActivity(){
@@ -83,41 +86,12 @@ private fun LotusApp(store:LotusStore){
         containerColor=Ivory,
         topBar={ LotusPremiumHeader(store) },
         bottomBar={
-            NavigationBar(
-                containerColor=Color.White,
-                tonalElevation=8.dp
-            ){
-                NavigationBarItem(
-                    selected=section==Section.DASH,
-                    onClick={section=Section.DASH},
-                    icon={Icon(Icons.Default.Home,null)},
-                    label={Text("Início")}
-                )
-                NavigationBarItem(
-                    selected=section==Section.CLIENTS,
-                    onClick={section=Section.CLIENTS},
-                    icon={Icon(Icons.Default.People,null)},
-                    label={Text("Clientes")}
-                )
-                NavigationBarItem(
-                    selected=false,
-                    onClick={quickActions=true},
-                    icon={Box(Modifier.size(38.dp).clip(CircleShape).background(Rose),contentAlignment=Alignment.Center){Icon(Icons.Default.Add,null,tint=Color.White)}},
-                    label={Text("Novo")}
-                )
-                NavigationBarItem(
-                    selected=section==Section.PRODUCTS,
-                    onClick={section=Section.PRODUCTS},
-                    icon={Icon(Icons.Default.Inventory2,null)},
-                    label={Text("Estoque")}
-                )
-                NavigationBarItem(
-                    selected=section==Section.SALES || section==Section.COMPANY || section==Section.QUOTES,
-                    onClick={moreMenu=true},
-                    icon={Icon(Icons.Default.MoreHoriz,null)},
-                    label={Text("Mais")}
-                )
-            }
+            LotusBottomBar(
+                section=section,
+                onSection={section=it},
+                onQuick={quickActions=true},
+                onMore={moreMenu=true}
+            )
         }
     ){pad->
         Box(Modifier.padding(pad).fillMaxSize()){
@@ -165,16 +139,65 @@ private fun LotusApp(store:LotusStore){
 }
 
 @Composable
+private fun LotusBottomBar(
+    section:Section,
+    onSection:(Section)->Unit,
+    onQuick:()->Unit,
+    onMore:()->Unit
+){
+    Box(
+        Modifier.fillMaxWidth().background(
+            Brush.horizontalGradient(listOf(Color(0xFFC7667E),Color(0xFFA74966)))
+        ).navigationBarsPadding().padding(horizontal=8.dp,vertical=7.dp)
+    ){
+        Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceAround,verticalAlignment=Alignment.CenterVertically){
+            BottomNavItem("Início",Icons.Default.Home,section==Section.DASH){onSection(Section.DASH)}
+            BottomNavItem("Clientes",Icons.Default.People,section==Section.CLIENTS){onSection(Section.CLIENTS)}
+            Column(
+                Modifier.clickable{onQuick()}.padding(horizontal=5.dp),
+                horizontalAlignment=Alignment.CenterHorizontally
+            ){
+                Surface(color=Color.White,shape=CircleShape,shadowElevation=5.dp){
+                    Box(Modifier.size(48.dp),contentAlignment=Alignment.Center){
+                        Icon(Icons.Default.Add,null,tint=DeepRose,modifier=Modifier.size(28.dp))
+                    }
+                }
+                Spacer(Modifier.height(2.dp))
+                Text("Novo",fontSize=10.sp,color=Color.White,fontWeight=FontWeight.SemiBold)
+            }
+            BottomNavItem("Estoque",Icons.Default.Inventory2,section==Section.PRODUCTS){onSection(Section.PRODUCTS)}
+            BottomNavItem("Mais",Icons.Default.MoreHoriz,section==Section.QUOTES||section==Section.SALES||section==Section.COMPANY){onMore()}
+        }
+    }
+}
+
+@Composable
+private fun BottomNavItem(label:String,icon:androidx.compose.ui.graphics.vector.ImageVector,selected:Boolean,onClick:()->Unit){
+    Column(
+        Modifier.clickable{onClick()}.padding(horizontal=7.dp,vertical=3.dp),
+        horizontalAlignment=Alignment.CenterHorizontally
+    ){
+        Surface(
+            color=if(selected)Color.White.copy(alpha=.18f) else Color.Transparent,
+            shape=RoundedCornerShape(14.dp)
+        ){
+            Icon(icon,null,tint=Color.White,modifier=Modifier.padding(horizontal=10.dp,vertical=5.dp).size(20.dp))
+        }
+        Text(label,fontSize=10.sp,color=Color.White,fontWeight=if(selected)FontWeight.Bold else FontWeight.Medium)
+    }
+}
+
+@Composable
 private fun LotusPremiumHeader(store:LotusStore){
     Surface(color=Ivory,shadowElevation=0.dp){
         Box(
-            Modifier.fillMaxWidth().padding(horizontal=12.dp,vertical=7.dp),
+            Modifier.fillMaxWidth().padding(horizontal=12.dp,vertical=2.dp),
             contentAlignment=Alignment.Center
         ){
             IconButton(onClick={},modifier=Modifier.align(Alignment.CenterStart)){
                 Icon(Icons.Default.Menu,contentDescription="Menu",tint=Plum)
             }
-            LotusLogoImage(Modifier.width(128.dp).height(66.dp))
+            LotusLogoImage(Modifier.width(126.dp).height(92.dp))
             IconButton(onClick={},modifier=Modifier.align(Alignment.CenterEnd)){
                 Icon(Icons.Default.NotificationsNone,contentDescription="Notificações",tint=Rose)
             }
@@ -280,6 +303,13 @@ private fun DashboardScreen(store:LotusStore,onNavigate:(Section)->Unit){
     val monthName=java.text.SimpleDateFormat("MMMM yyyy",Locale("pt","BR")).format(now.time)
         .replaceFirstChar{if(it.isLowerCase())it.titlecase(Locale("pt","BR")) else it.toString()}
 
+    Box(Modifier.fillMaxSize()){
+        Icon(
+            painter=painterResource(R.drawable.lotus_watermark),
+            contentDescription=null,
+            tint=Rose,
+            modifier=Modifier.size(230.dp).align(Alignment.TopEnd).offset(x=60.dp,y=(-12).dp).alpha(.055f)
+        )
     LazyColumn(
         Modifier.fillMaxSize().padding(horizontal=16.dp,vertical=8.dp),
         verticalArrangement=Arrangement.spacedBy(12.dp)
@@ -369,6 +399,8 @@ private fun DashboardScreen(store:LotusStore,onNavigate:(Section)->Unit){
             }
         }
     }
+    }
+
 }
 
 @Composable
