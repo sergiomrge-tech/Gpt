@@ -815,7 +815,8 @@ private fun QuotesScreen(store:LotusStore){
     var pendingFinalize by remember{mutableStateOf<Quote?>(null)}
     var checkoutPayment by remember{mutableStateOf("Pix")}
     var checkoutInstallments by remember{mutableStateOf("2")}
-    var checkoutFee by remember{mutableStateOf("")}
+    var checkoutPaid by remember{mutableStateOf("")}
+    var checkoutReceived by remember{mutableStateOf("")}
 
     @Suppress("UNUSED_EXPRESSION") version
 
@@ -834,7 +835,7 @@ private fun QuotesScreen(store:LotusStore){
         discountValue.num(),
         payment,
         if(payment=="Crédito parcelado")installments.intNum().coerceAtLeast(2) else 1,
-        if(isCreditPayment(payment))cardFee.num() else 0.0,
+        0.0,
         false,
         notes,
         if(createdAt==0L)System.currentTimeMillis() else createdAt,
@@ -934,14 +935,11 @@ private fun QuotesScreen(store:LotusStore){
             }
 
             if(isCreditPayment(payment)){
-                Row(horizontalArrangement=Arrangement.spacedBy(8.dp)){
-                    if(payment=="Crédito parcelado"){
-                        Field("Parcelas",installments,Modifier.weight(1f),KeyboardType.Number){installments=it}
-                    }
-                    Field("Taxa do cartão %",cardFee,Modifier.weight(1f),KeyboardType.Decimal){cardFee=it}
+                if(payment=="Crédito parcelado"){
+                    Field("Parcelas",installments,KeyboardType.Number){installments=it}
                 }
                 Text(
-                    "A taxa é interna: o cliente continua pagando o valor comercial integral.",
+                    "A taxa será calculada automaticamente na finalização, usando o valor pago pelo cliente e o valor líquido recebido.",
                     fontSize=11.sp,
                     color=Muted
                 )
@@ -953,10 +951,6 @@ private fun QuotesScreen(store:LotusStore){
                 Column(Modifier.fillMaxWidth().padding(14.dp),verticalArrangement=Arrangement.spacedBy(6.dp)){
                     PremiumLine("Subtotal",calc.subtotal.money())
                     PremiumLine("Descontos",(calc.itemDiscounts+calc.generalDiscount).money())
-                    if(isCreditPayment(payment)){
-                        PremiumLine("Taxa do cartão",calc.cardFee.money())
-                        PremiumLine("Líquido previsto",calc.netRevenue.money())
-                    }
                     HorizontalDivider(color=Color(0xFFD9CBD3))
                     Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween){
                         Text("TOTAL CLIENTE",fontSize=16.sp,fontWeight=FontWeight.Bold,color=Plum)
@@ -1074,7 +1068,7 @@ private fun QuotesScreen(store:LotusStore){
                         else->q.payment
                     }
                     installments=q.installments.toString()
-                    cardFee=q.cardFeePercent.toString().replace('.',',')
+                    cardFee=""
                     notes=q.notes
                     msg=""
                 }){Text("Editar")}
@@ -1096,7 +1090,11 @@ private fun QuotesScreen(store:LotusStore){
                         else->"Pix"
                     }
                     checkoutInstallments=(if(q.installments<2)2 else q.installments).toString()
-                    checkoutFee=if(q.cardFeePercent>0.0)q.cardFeePercent.toString().replace('.',',') else ""
+                    val quoteTotal=calculateQuote(q).charged
+                    checkoutPaid=String.format(Locale("pt","BR"),"%.2f",quoteTotal)
+                    checkoutReceived=if(isCreditPayment(q.payment)&&q.cardFeePercent>0.0){
+                        String.format(Locale("pt","BR"),"%.2f",calculateQuote(q).netRevenue)
+                    }else ""
                 }){Text("Finalizar venda")}
             }
         }}
@@ -1104,15 +1102,24 @@ private fun QuotesScreen(store:LotusStore){
 
     pendingFinalize?.let{original->
         val normalizedInstallments=if(checkoutPayment=="Crédito parcelado")checkoutInstallments.intNum().coerceAtLeast(2) else 1
-        val normalizedFee=if(isCreditPayment(checkoutPayment))checkoutFee.num().coerceAtLeast(0.0) else 0.0
+        val quoteTotal=calculateQuote(original).charged
+        val actualPaid=if(isCreditPayment(checkoutPayment))checkoutPaid.num() else quoteTotal
+        val actualReceived=if(isCreditPayment(checkoutPayment))checkoutReceived.num() else actualPaid
+        val settlement=calculateCardSettlement(actualPaid,actualReceived)
+        val settlementValid=!isCreditPayment(checkoutPayment) || (
+            checkoutPaid.isNotBlank() &&
+            checkoutReceived.isNotBlank() &&
+            actualPaid>0.0 &&
+            actualReceived>=0.0 &&
+            actualReceived<=actualPaid
+        )
         val preview=original.copy(
             payment=checkoutPayment,
             installments=normalizedInstallments,
-            cardFeePercent=normalizedFee,
+            cardFeePercent=settlement.feePercent,
             passCardFee=false,
             finalized=false
         )
-        val payCalc=calculateQuote(preview)
 
         AlertDialog(
             onDismissRequest={pendingFinalize=null},
@@ -1123,7 +1130,7 @@ private fun QuotesScreen(store:LotusStore){
 
                     FilterChip(
                         selected=checkoutPayment=="Pix",
-                        onClick={checkoutPayment="Pix";checkoutInstallments="1";checkoutFee=""},
+                        onClick={checkoutPayment="Pix";checkoutInstallments="1";checkoutPaid="";checkoutReceived=""},
                         label={Text("Pix")}
                     )
                     FilterChip(
@@ -1142,25 +1149,37 @@ private fun QuotesScreen(store:LotusStore){
                     }
 
                     if(isCreditPayment(checkoutPayment)){
-                        Field("Taxa total do cartão %",checkoutFee,keyboard=KeyboardType.Decimal){checkoutFee=it}
+                        Field("Valor pago pelo cliente",checkoutPaid,keyboard=KeyboardType.Decimal){checkoutPaid=it}
+                        Field("Valor líquido recebido",checkoutReceived,keyboard=KeyboardType.Decimal){checkoutReceived=it}
+
+                        if(checkoutReceived.isNotBlank() && actualReceived>actualPaid){
+                            Text(
+                                "O valor líquido recebido não pode ser maior que o valor pago pelo cliente.",
+                                fontSize=11.sp,
+                                color=MaterialTheme.colorScheme.error
+                            )
+                        }
                     }
 
                     Surface(color=Blush,shape=RoundedCornerShape(18.dp)){
                         Column(Modifier.fillMaxWidth().padding(14.dp),verticalArrangement=Arrangement.spacedBy(7.dp)){
-                            PremiumLine("Valor pago pelo cliente",payCalc.charged.money())
+                            PremiumLine("Valor pago pelo cliente",(if(isCreditPayment(checkoutPayment))settlement.paid else quoteTotal).money())
                             if(isCreditPayment(checkoutPayment)){
-                                PremiumLine("Taxa do cartão",payCalc.cardFee.money())
-                                HorizontalDivider(color=Color(0xFFE2CAD3))
-                                PremiumLine("Valor líquido recebido",payCalc.netRevenue.money())
+                                PremiumLine("Valor líquido recebido",settlement.received.money())
+                                PremiumLine("Taxa do cartão",settlement.feeValue.money())
+                                PremiumLine(
+                                    "Percentual da taxa",
+                                    String.format(Locale("pt","BR"),"%.2f%%",settlement.feePercent)
+                                )
                             }else{
-                                PremiumLine("Valor líquido recebido",payCalc.netRevenue.money())
+                                PremiumLine("Valor líquido recebido",quoteTotal.money())
                             }
                         }
                     }
 
                     if(isCreditPayment(checkoutPayment)){
                         Text(
-                            "Exemplo: venda de R$ 500,00 com 10% de taxa = cliente paga R$ 500,00 e a Lotus recebe R$ 450,00 líquidos.",
+                            "Exemplo: pagou R$ 500,00 e você recebeu R$ 450,00 → taxa R$ 50,00 → 10,00%.",
                             fontSize=11.sp,
                             color=Muted
                         )
@@ -1168,27 +1187,34 @@ private fun QuotesScreen(store:LotusStore){
                 }
             },
             confirmButton={
-                Button(onClick={
-                    val finalQuote=preview.copy()
-                    store.upsertQuote(finalQuote)
-                    val error=store.finalizeQuote(finalQuote)
-                    version++
-                    if(error!=null){
-                        msg=error
-                    }else{
-                        msg="Venda finalizada. Recibo gerado com o valor pago pelo cliente."
-                        val sale=store.sales.firstOrNull{it.quoteId==finalQuote.id}
-                        if(sale!=null){
-                            PdfUtil.shareSale(
-                                context,
-                                store.company,
-                                store.clients.firstOrNull{it.id==sale.clientId},
-                                sale
-                            )
+                Button(
+                    enabled=settlementValid,
+                    onClick={
+                        val finalQuote=preview.copy()
+                        store.upsertQuote(finalQuote)
+                        val error=store.finalizeQuote(
+                            finalQuote,
+                            actualPaid=if(isCreditPayment(checkoutPayment))settlement.paid else quoteTotal,
+                            actualNetReceived=if(isCreditPayment(checkoutPayment))settlement.received else quoteTotal
+                        )
+                        version++
+                        if(error!=null){
+                            msg=error
+                        }else{
+                            msg="Venda finalizada. Recibo gerado com o valor pago pelo cliente."
+                            val sale=store.sales.firstOrNull{it.quoteId==finalQuote.id}
+                            if(sale!=null){
+                                PdfUtil.shareSale(
+                                    context,
+                                    store.company,
+                                    store.clients.firstOrNull{it.id==sale.clientId},
+                                    sale
+                                )
+                            }
                         }
+                        pendingFinalize=null
                     }
-                    pendingFinalize=null
-                }){
+                ){
                     Text("Confirmar e gerar recibo")
                 }
             },
