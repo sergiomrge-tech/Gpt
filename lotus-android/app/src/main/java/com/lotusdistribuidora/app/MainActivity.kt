@@ -1230,15 +1230,23 @@ private fun SalesScreen(store:LotusStore){
                 Column(Modifier.weight(1f)){
                     Text("#"+sale.id.toString().takeLast(6)+" • "+sale.clientName,fontWeight=FontWeight.Bold,color=Ink)
                     Text("Total ${sale.chargedTotal.money()}",color=Plum,fontWeight=FontWeight.SemiBold)
-                    Text(sale.payment+(if(sale.payment=="Cartão")" • "+sale.installments+"x • taxa "+sale.cardFeePercent+"%" else ""),fontSize=12.sp,color=Muted)
+                    Text(
+                        sale.payment+
+                            (if(sale.payment=="Crédito parcelado" || (sale.payment=="Cartão"&&sale.installments>1))" • "+sale.installments+"x" else "")+
+                            (if(isCreditPayment(sale.payment)&&sale.cardFeePercent>0.0)" • taxa "+String.format(Locale("pt","BR"),"%.2f%%",sale.cardFeePercent) else ""),
+                        fontSize=12.sp,
+                        color=Muted
+                    )
                 }
                 Surface(color=Color(0xFFE7F3ED),shape=RoundedCornerShape(50)){
                     Text(profit.money(),Modifier.padding(horizontal=10.dp,vertical=5.dp),fontSize=11.sp,color=Success,fontWeight=FontWeight.Bold)
                 }
             }
             Spacer(Modifier.height(6.dp))
-            Row(horizontalArrangement=Arrangement.spacedBy(10.dp)){
-                PremiumLine("Líquido",sale.netRevenue.money())
+            Column(verticalArrangement=Arrangement.spacedBy(5.dp)){
+                PremiumLine("Pago pelo cliente",sale.chargedTotal.money())
+                PremiumLine("Taxa do cartão",sale.cardFeeValue.money())
+                PremiumLine("Líquido recebido",sale.netRevenue.money())
                 PremiumLine("CMV",cogs.money())
             }
             TextButton(onClick={PdfUtil.shareSale(context,store.company,store.clients.firstOrNull{it.id==sale.clientId},sale)}){Text("Gerar / enviar recibo PDF")}
