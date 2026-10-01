@@ -16,6 +16,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.NotificationsNone
+import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material.icons.filled.MoreHoriz
@@ -30,6 +33,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -37,6 +41,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import java.util.Calendar
 import java.util.Locale
+import kotlinx.coroutines.delay
 
 private val Rose=Color(0xFFB65C7A)
 private val DeepRose=Color(0xFF9D4567)
@@ -161,35 +166,17 @@ private fun LotusApp(store:LotusStore){
 
 @Composable
 private fun LotusPremiumHeader(store:LotusStore){
-    Surface(color=Ivory,shadowElevation=1.dp){
-        Row(
-            Modifier.fillMaxWidth().padding(horizontal=16.dp,vertical=10.dp),
-            verticalAlignment=Alignment.CenterVertically
+    Surface(color=Ivory,shadowElevation=0.dp){
+        Box(
+            Modifier.fillMaxWidth().padding(horizontal=12.dp,vertical=7.dp),
+            contentAlignment=Alignment.Center
         ){
-            LotusLogoImage(Modifier.width(104.dp).height(58.dp))
-            Spacer(Modifier.width(10.dp))
-            Column(Modifier.weight(1f)){
-                Text("Lotus Distribuidora",fontWeight=FontWeight.Bold,color=Plum,fontSize=18.sp)
-                Text("Gestão comercial e financeira",fontSize=11.sp,color=Rose)
+            IconButton(onClick={},modifier=Modifier.align(Alignment.CenterStart)){
+                Icon(Icons.Default.Menu,contentDescription="Menu",tint=Plum)
             }
-        }
-    }
-}
-
-@Composable
-private fun LotusLogoImage(modifier:Modifier=Modifier){
-    val image=remember{LotusBrand.bitmap()?.asImageBitmap()}
-    if(image!=null){
-        Image(
-            bitmap=image,
-            contentDescription="Lotus Distribuidora",
-            modifier=modifier,
-            contentScale=ContentScale.Fit
-        )
-    }else{
-        Surface(modifier=modifier,shape=RoundedCornerShape(16.dp),color=Blush){
-            Box(contentAlignment=Alignment.Center){
-                Text("LOTUS",fontWeight=FontWeight.Bold,color=Plum)
+            LotusLogoImage(Modifier.width(128.dp).height(66.dp))
+            IconButton(onClick={},modifier=Modifier.align(Alignment.CenterEnd)){
+                Icon(Icons.Default.NotificationsNone,contentDescription="Notificações",tint=Rose)
             }
         }
     }
@@ -264,48 +251,55 @@ private fun DashboardScreen(store:LotusStore,onNavigate:(Section)->Unit){
         c.get(Calendar.MONTH)==now.get(Calendar.MONTH)&&c.get(Calendar.YEAR)==now.get(Calendar.YEAR)
     }
     val count=monthSales.size
-    val qty=monthSales.sumOf{s->s.items.sumOf{it.qty}}
     val gross=monthSales.sumOf{it.chargedTotal}
     val net=monthSales.sumOf{it.netRevenue}
-    val fees=monthSales.sumOf{it.cardFeeValue}
-    val discounts=monthSales.sumOf{it.discountAmount}
     val cogs=monthSales.sumOf{s->s.items.sumOf{it.qty*it.unitCostSnapshot}}
     val profit=net-cogs
-    val ticket=if(count>0)gross/count else 0.0
-    val margin=if(net>0)profit/net*100 else 0.0
-    val stockCapital=store.products.sumOf{it.stock*it.cost}
     val low=store.products.count{it.stock<=it.minStock}
     val pendingQuotes=store.quotes.count{!it.finalized}
-    val soldByProduct=monthSales.flatMap{it.items}.groupBy{it.productName}.mapValues{e->e.value.sumOf{it.qty}}
-    val topProduct=soldByProduct.maxByOrNull{it.value}?.let{it.key+" ("+it.value+")"}?:"—"
-    val sellerFirst=store.company.sellerName.trim().substringBefore(" ").takeIf{it.isNotBlank()}
+    val sellerFirst=store.company.sellerName.trim().substringBefore(" ").takeIf{it.isNotBlank()} ?: "Tuanny"
     val monthName=java.text.SimpleDateFormat("MMMM yyyy",Locale("pt","BR")).format(now.time)
         .replaceFirstChar{if(it.isLowerCase())it.titlecase(Locale("pt","BR")) else it.toString()}
 
     LazyColumn(
-        Modifier.fillMaxSize().padding(horizontal=16.dp,vertical=14.dp),
+        Modifier.fillMaxSize().padding(horizontal=16.dp,vertical=8.dp),
         verticalArrangement=Arrangement.spacedBy(12.dp)
     ){
         item{
-            Text(
-                if(sellerFirst!=null)"Olá, $sellerFirst!" else "Olá! Seja bem-vinda.",
-                fontSize=25.sp,fontWeight=FontWeight.Bold,color=Plum
-            )
-            Text("Acompanhe a Lotus em um só lugar",fontSize=13.sp,color=Muted)
-            Spacer(Modifier.height(12.dp))
-            Surface(color=Color.White,shape=RoundedCornerShape(18.dp),shadowElevation=2.dp){
-                Row(Modifier.fillMaxWidth().padding(12.dp),verticalAlignment=Alignment.CenterVertically){
-                    Text("📅",fontSize=18.sp)
+            Text("Olá, $sellerFirst!",fontSize=24.sp,fontWeight=FontWeight.Bold,color=Plum)
+            Text("Seja bem-vinda!",fontSize=14.sp,color=Rose)
+            Spacer(Modifier.height(10.dp))
+            Surface(
+                color=Color.White,
+                shape=RoundedCornerShape(18.dp),
+                shadowElevation=1.dp,
+                modifier=Modifier.fillMaxWidth()
+            ){
+                Row(
+                    Modifier.padding(horizontal=14.dp,vertical=11.dp),
+                    verticalAlignment=Alignment.CenterVertically,
+                    horizontalArrangement=Arrangement.Center
+                ){
+                    Text(monthName,fontWeight=FontWeight.SemiBold,color=Plum)
                     Spacer(Modifier.width(8.dp))
-                    Text(monthName,Modifier.weight(1f),fontWeight=FontWeight.SemiBold,color=Plum)
-                    Text("Visão mensal",fontSize=11.sp,color=Rose)
+                    Icon(Icons.Default.KeyboardArrowDown,null,tint=Rose,modifier=Modifier.size(18.dp))
                 }
             }
         }
         item{
             Row(horizontalArrangement=Arrangement.spacedBy(10.dp)){
-                PremiumMetricCard("Vendas do mês",gross.money(),"${count} venda(s)",DeepRose,Color.White,Modifier.weight(1f))
-                PremiumMetricCard("Lucro líquido",profit.money(),String.format(Locale("pt","BR"),"%.1f%% margem",margin),Blush,Plum,Modifier.weight(1f))
+                GradientMetricCard(
+                    label="Vendas do mês",
+                    value=gross.money(),
+                    caption="${count} venda(s)",
+                    modifier=Modifier.weight(1f)
+                )
+                SoftMetricCard(
+                    label="Lucro líquido",
+                    value=profit.money(),
+                    caption="resultado do mês",
+                    modifier=Modifier.weight(1f)
+                )
             }
         }
         item{
@@ -315,56 +309,104 @@ private fun DashboardScreen(store:LotusStore,onNavigate:(Section)->Unit){
             }
         }
         item{
-            Text("Acesso rápido",fontWeight=FontWeight.Bold,color=Plum,fontSize=18.sp)
-            Spacer(Modifier.height(4.dp))
-            Row(horizontalArrangement=Arrangement.spacedBy(10.dp)){
-                QuickTile("Novo orçamento",Icons.Default.ReceiptLong,Modifier.weight(1f)){onNavigate(Section.QUOTES)}
-                QuickTile("Nova venda",Icons.Default.ShoppingBag,Modifier.weight(1f)){onNavigate(Section.QUOTES)}
-            }
-            Spacer(Modifier.height(10.dp))
-            Row(horizontalArrangement=Arrangement.spacedBy(10.dp)){
-                QuickTile("Cliente",Icons.Default.People,Modifier.weight(1f)){onNavigate(Section.CLIENTS)}
-                QuickTile("Produto",Icons.Default.Inventory2,Modifier.weight(1f)){onNavigate(Section.PRODUCTS)}
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement=Arrangement.spacedBy(8.dp)
+            ){
+                CompactQuickTile("Orçamento",Icons.Default.ReceiptLong,Modifier.weight(1f)){onNavigate(Section.QUOTES)}
+                CompactQuickTile("Venda",Icons.Default.ShoppingBag,Modifier.weight(1f)){onNavigate(Section.QUOTES)}
+                CompactQuickTile("Cliente",Icons.Default.People,Modifier.weight(1f)){onNavigate(Section.CLIENTS)}
+                CompactQuickTile("Produto",Icons.Default.Inventory2,Modifier.weight(1f)){onNavigate(Section.PRODUCTS)}
             }
         }
         item{
-            Text("Resumo financeiro",fontWeight=FontWeight.Bold,color=Plum,fontSize=18.sp)
-            Spacer(Modifier.height(6.dp))
-            DataCard{
-                PremiumLine("Faturamento líquido",net.money())
-                PremiumLine("CMV",cogs.money())
-                PremiumLine("Taxas de cartão",fees.money())
-                PremiumLine("Descontos",discounts.money())
-                PremiumLine("Ticket médio",ticket.money())
-                PremiumLine("Capital em estoque",stockCapital.money())
-                PremiumLine("Produtos vendidos",qty.toString())
-                PremiumLine("Mais vendido",topProduct)
+            Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){
+                Text("Vendas recentes",Modifier.weight(1f),fontWeight=FontWeight.Bold,color=Plum,fontSize=18.sp)
+                TextButton(onClick={onNavigate(Section.SALES)}){Text("Ver todas")}
             }
         }
-        if(monthSales.isNotEmpty()){
-            item{
-                Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){
-                    Text("Vendas recentes",Modifier.weight(1f),fontWeight=FontWeight.Bold,color=Plum,fontSize=18.sp)
-                    TextButton(onClick={onNavigate(Section.SALES)}){Text("Ver todas")}
-                }
-            }
-            items(monthSales.take(4)){sale->
+        if(monthSales.isEmpty()){
+            item{DataCard{Text("Nenhuma venda registrada neste mês.",color=Muted,fontSize=13.sp)}}
+        }else{
+            items(monthSales.take(5)){sale->
                 DataCard{
                     Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){
                         Surface(color=Blush,shape=CircleShape){
-                            Icon(Icons.Default.ShoppingBag,null,tint=Rose,modifier=Modifier.padding(10.dp))
+                            Icon(Icons.Default.ReceiptLong,null,tint=Rose,modifier=Modifier.padding(10.dp))
                         }
                         Spacer(Modifier.width(10.dp))
                         Column(Modifier.weight(1f)){
                             Text(sale.clientName.ifBlank{"Cliente"},fontWeight=FontWeight.SemiBold,color=Ink)
-                            Text(sale.chargedTotal.money(),fontSize=13.sp,color=Rose)
+                            Text(java.text.SimpleDateFormat("dd/MM/yyyy",Locale("pt","BR")).format(java.util.Date(sale.createdAt)),fontSize=11.sp,color=Muted)
                         }
-                        Surface(color=Color(0xFFE7F3ED),shape=RoundedCornerShape(50)){
-                            Text("Venda",Modifier.padding(horizontal=10.dp,vertical=5.dp),fontSize=11.sp,color=Success,fontWeight=FontWeight.Bold)
+                        Column(horizontalAlignment=Alignment.End){
+                            Text(sale.chargedTotal.money(),fontWeight=FontWeight.Bold,color=Plum)
+                            Surface(color=Color(0xFFE7F3ED),shape=RoundedCornerShape(50)){
+                                Text("Venda",Modifier.padding(horizontal=9.dp,vertical=3.dp),fontSize=10.sp,color=Success,fontWeight=FontWeight.Bold)
+                            }
                         }
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun GradientMetricCard(label:String,value:String,caption:String,modifier:Modifier=Modifier){
+    Card(modifier,shape=RoundedCornerShape(24.dp),elevation=CardDefaults.cardElevation(3.dp)){
+        Box(
+            Modifier.fillMaxWidth().background(
+                Brush.linearGradient(listOf(Color(0xFFB85D79),Color(0xFF94405F)))
+            ).padding(16.dp)
+        ){
+            Column{
+                Text(label,fontSize=12.sp,color=Color.White.copy(alpha=.9f))
+                Spacer(Modifier.height(6.dp))
+                Text(value,fontSize=21.sp,fontWeight=FontWeight.Bold,color=Color.White)
+                Spacer(Modifier.height(3.dp))
+                Text(caption,fontSize=11.sp,color=Color.White.copy(alpha=.82f))
+            }
+        }
+    }
+}
+
+@Composable
+private fun SoftMetricCard(label:String,value:String,caption:String,modifier:Modifier=Modifier){
+    Card(
+        modifier,
+        shape=RoundedCornerShape(24.dp),
+        colors=CardDefaults.cardColors(containerColor=Color(0xFFFFF0F4)),
+        elevation=CardDefaults.cardElevation(2.dp)
+    ){
+        Column(Modifier.padding(16.dp)){
+            Text(label,fontSize=12.sp,color=Muted)
+            Spacer(Modifier.height(6.dp))
+            Text(value,fontSize=21.sp,fontWeight=FontWeight.Bold,color=Plum)
+            Spacer(Modifier.height(3.dp))
+            Text(caption,fontSize=11.sp,color=Rose)
+        }
+    }
+}
+
+@Composable
+private fun CompactQuickTile(label:String,icon:androidx.compose.ui.graphics.vector.ImageVector,modifier:Modifier=Modifier,onClick:()->Unit){
+    Card(
+        onClick=onClick,
+        modifier=modifier,
+        shape=RoundedCornerShape(18.dp),
+        colors=CardDefaults.cardColors(containerColor=Color.White),
+        elevation=CardDefaults.cardElevation(2.dp)
+    ){
+        Column(
+            Modifier.padding(vertical=11.dp,horizontal=4.dp),
+            horizontalAlignment=Alignment.CenterHorizontally
+        ){
+            Surface(color=Blush,shape=RoundedCornerShape(13.dp)){
+                Icon(icon,null,tint=DeepRose,modifier=Modifier.padding(8.dp).size(20.dp))
+            }
+            Spacer(Modifier.height(6.dp))
+            Text(label,fontSize=10.sp,fontWeight=FontWeight.SemiBold,color=Plum,maxLines=1)
         }
     }
 }
@@ -419,6 +461,27 @@ private fun ProductsScreen(store:LotusStore){
     var supplier by remember{mutableStateOf("")};var name by remember{mutableStateOf("")};var sku by remember{mutableStateOf("")}
     var stock by remember{mutableStateOf("")};var minStock by remember{mutableStateOf("")};var cost by remember{mutableStateOf("")};var price by remember{mutableStateOf("")}
     var search by remember{mutableStateOf("")}
+    var cepStatus by remember{mutableStateOf("")}
+    val cepDigits=cep.filter{it.isDigit()}
+    LaunchedEffect(cepDigits){
+        if(cepDigits.length==8){
+            cepStatus="Buscando CEP..."
+            delay(250)
+            val result=CepService.lookup(cepDigits)
+            if(result!=null){
+                if(result.street.isNotBlank())street=result.street
+                if(result.district.isNotBlank())district=result.district
+                if(result.city.isNotBlank())city=result.city
+                if(result.state.isNotBlank())state=result.state
+                if(complement.isBlank()&&result.complement.isNotBlank())complement=result.complement
+                cepStatus="Endereço preenchido automaticamente"
+            }else{
+                cepStatus="CEP não encontrado"
+            }
+        }else if(cepDigits.length<8){
+            cepStatus=""
+        }
+    }
     fun clear(){id=0;supplier="";name="";sku="";stock="";minStock="";cost="";price=""}
     val profit=price.num()-cost.num()
     val margin=if(price.num()>0)profit/price.num()*100 else 0.0
@@ -533,6 +596,7 @@ private fun ClientsScreen(store:LotusStore){
                 Field("CEP",cep,Modifier.weight(1f)){cep=it}
                 Field("Número",number,Modifier.weight(.65f)){number=it}
             }
+            if(cepStatus.isNotBlank())Text(cepStatus,fontSize=11.sp,color=if(cepStatus.startsWith("Endereço"))Success else Rose)
             Field("Logradouro",street){street=it}
             Field("Complemento",complement){complement=it}
             Field("Bairro",district){district=it}
@@ -719,6 +783,7 @@ private fun QuotesScreen(store:LotusStore){
             Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(4.dp)){
                 if(!q.finalized)TextButton(onClick={editId=q.id;createdAt=q.createdAt;clientId=q.clientId;clientName=q.clientName;qItems.clear();qItems.addAll(q.items.map{it.copy()});discountType=q.discountType;discountValue=q.discountValue.toString().replace('.',',');payment=q.payment;installments=q.installments.toString();cardFee=q.cardFeePercent.toString().replace('.',',');passFee=q.passCardFee;notes=q.notes;msg=""}){Text("Editar")}
                 TextButton(onClick={PdfUtil.shareQuote(context,store.company,store.clients.firstOrNull{it.id==q.clientId},q)}){Text("Gerar PDF")}
+                TextButton(onClick={PdfUtil.shareQuoteJpg(context,store.company,store.clients.firstOrNull{it.id==q.clientId},q)}){Text("JPG")}
                 if(!q.finalized)TextButton(onClick={val err=store.finalizeQuote(q);version++;msg=err?:"Venda finalizada e estoque baixado."}){Text("Finalizar venda")}
             }
         }}
