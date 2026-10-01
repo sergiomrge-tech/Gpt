@@ -20,10 +20,10 @@ class MainActivitySmokeTest {
     }
 
     @Test
-    fun officialLogoDecodes() {
-        val bitmap=LotusBrand.bitmap()
-        check(bitmap!=null) { "Official Lotus logo failed to decode" }
-        check(bitmap.width>=150 && bitmap.height>=100) { "Official Lotus logo has invalid dimensions" }
+    fun officialBrandVectorExists() {
+        val context=ApplicationProvider.getApplicationContext<Context>()
+        val drawable=androidx.core.content.ContextCompat.getDrawable(context,R.drawable.lotus_mark)
+        check(drawable!=null) { "Official Lotus vector mark was not packaged" }
     }
 
     @Test
