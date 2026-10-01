@@ -598,10 +598,19 @@ private fun QuotesScreen(store:LotusStore){
     fun clear(){editId=0;createdAt=0;clientId=0;clientName="";qItems.clear();discountType="R$";discountValue="";payment="Pix";installments="1";cardFee="";passFee=false;notes="";msg=""}
     fun currentQuote()=Quote(if(editId==0L)System.currentTimeMillis() else editId,clientId,clientName,qItems.map{it.copy()}.toMutableList(),discountType,discountValue.num(),payment,installments.intNum().coerceAtLeast(1),cardFee.num(),passFee,notes,if(createdAt==0L)System.currentTimeMillis() else createdAt,false)
     val calc=calculateQuote(currentQuote())
+    val pending=store.quotes.count{!it.finalized}
+    val closed=store.quotes.count{it.finalized}
 
-    LazyColumn(Modifier.fillMaxSize().padding(16.dp),verticalArrangement=Arrangement.spacedBy(10.dp)){
-        item{SectionTitle(if(editId==0L)"Novo orçamento" else "Editar orçamento","Pode ser alterado livremente até a venda ser finalizada")}
+    LazyColumn(Modifier.fillMaxSize().padding(16.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){
+        item{SectionTitle(if(editId==0L)"Novo orçamento" else "Editar orçamento","Monte, ajuste e envie antes de finalizar a venda")}
+        item{
+            Row(horizontalArrangement=Arrangement.spacedBy(10.dp)){
+                PremiumMetricCard("Pendentes",pending.toString(),"editáveis",Blush,Plum,Modifier.weight(1f))
+                PremiumMetricCard("Finalizados",closed.toString(),"convertidos",Color.White,Plum,Modifier.weight(1f))
+            }
+        }
         item{FormCard{
+            Text("Dados do orçamento",fontWeight=FontWeight.Bold,color=Plum,fontSize=18.sp)
             Selector("Selecionar cliente",clientName,store.clients.map{it.name}){i->store.clients.getOrNull(i)?.let{clientId=it.id;clientName=it.name}}
             Text("Produtos",fontWeight=FontWeight.Bold,color=Plum)
             Selector("Adicionar produto","",store.products.map{it.name+" • estoque "+it.stock}){i->
@@ -612,14 +621,22 @@ private fun QuotesScreen(store:LotusStore){
                 }
             }
             qItems.forEachIndexed{i,item->
-                Surface(color=Ivory,shape=RoundedCornerShape(16.dp)){Column(Modifier.padding(10.dp),verticalArrangement=Arrangement.spacedBy(6.dp)){
-                    Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween){Text(item.productName,fontWeight=FontWeight.Bold);TextButton(onClick={qItems.removeAt(i)}){Text("Remover")}}
-                    Row(horizontalArrangement=Arrangement.spacedBy(6.dp)){
-                        Field("Qtd.",item.qty.toString(),Modifier.weight(.7f),KeyboardType.Number){v->qItems[i]=item.copy(qty=v.intNum().coerceAtLeast(0))}
-                        Field("Preço",item.unitPrice.toString().replace('.',','),Modifier.weight(1f),KeyboardType.Decimal){v->qItems[i]=item.copy(unitPrice=v.num())}
-                        Field("Desc. %",item.itemDiscountPercent.toString().replace('.',','),Modifier.weight(1f),KeyboardType.Decimal){v->qItems[i]=item.copy(itemDiscountPercent=v.num())}
+                Surface(color=Blush,shape=RoundedCornerShape(18.dp)){
+                    Column(Modifier.padding(12.dp),verticalArrangement=Arrangement.spacedBy(8.dp)){
+                        Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween,verticalAlignment=Alignment.CenterVertically){
+                            Column(Modifier.weight(1f)){
+                                Text(item.productName,fontWeight=FontWeight.Bold,color=Ink)
+                                if(item.productCode.isNotBlank())Text("SKU ${item.productCode}",fontSize=11.sp,color=Muted)
+                            }
+                            TextButton(onClick={qItems.removeAt(i)}){Text("Remover")}
+                        }
+                        Row(horizontalArrangement=Arrangement.spacedBy(6.dp)){
+                            Field("Qtd.",item.qty.toString(),Modifier.weight(.7f),KeyboardType.Number){v->qItems[i]=item.copy(qty=v.intNum().coerceAtLeast(0))}
+                            Field("Preço",item.unitPrice.toString().replace('.',','),Modifier.weight(1f),KeyboardType.Decimal){v->qItems[i]=item.copy(unitPrice=v.num())}
+                            Field("Desc. %",item.itemDiscountPercent.toString().replace('.',','),Modifier.weight(1f),KeyboardType.Decimal){v->qItems[i]=item.copy(itemDiscountPercent=v.num())}
+                        }
                     }
-                }}
+                }
             }
             Text("Desconto geral",fontWeight=FontWeight.Bold,color=Plum)
             Row(horizontalArrangement=Arrangement.spacedBy(8.dp),verticalAlignment=Alignment.CenterVertically){
@@ -628,33 +645,66 @@ private fun QuotesScreen(store:LotusStore){
                 Field(if(discountType=="%")"Percentual" else "Valor",discountValue,Modifier.weight(1f),KeyboardType.Decimal){discountValue=it}
             }
             Text("Pagamento",fontWeight=FontWeight.Bold,color=Plum)
-            Row(horizontalArrangement=Arrangement.spacedBy(8.dp)){FilterChip(selected=payment=="Pix",onClick={payment="Pix"},label={Text("Pix")});FilterChip(selected=payment=="Cartão",onClick={payment="Cartão"},label={Text("Cartão")})}
+            Row(horizontalArrangement=Arrangement.spacedBy(8.dp)){
+                FilterChip(selected=payment=="Pix",onClick={payment="Pix"},label={Text("Pix")})
+                FilterChip(selected=payment=="Cartão",onClick={payment="Cartão"},label={Text("Cartão")})
+            }
             if(payment=="Cartão"){
-                Row(horizontalArrangement=Arrangement.spacedBy(8.dp)){Field("Parcelas",installments,Modifier.weight(1f),KeyboardType.Number){installments=it};Field("Tarifa %",cardFee,Modifier.weight(1f),KeyboardType.Decimal){cardFee=it}}
-                Row(verticalAlignment=Alignment.CenterVertically){Switch(checked=passFee,onCheckedChange={passFee=it});Spacer(Modifier.width(8.dp));Text("Repassar tarifa ao cliente")}
+                Row(horizontalArrangement=Arrangement.spacedBy(8.dp)){
+                    Field("Parcelas",installments,Modifier.weight(1f),KeyboardType.Number){installments=it}
+                    Field("Tarifa %",cardFee,Modifier.weight(1f),KeyboardType.Decimal){cardFee=it}
+                }
+                Row(verticalAlignment=Alignment.CenterVertically){
+                    Switch(checked=passFee,onCheckedChange={passFee=it})
+                    Spacer(Modifier.width(8.dp))
+                    Text("Repassar tarifa ao cliente",color=Muted)
+                }
             }
             Field("Observações",notes,singleLine=false){notes=it}
-            Surface(color=Lilac.copy(alpha=.55f),shape=RoundedCornerShape(18.dp)){Column(Modifier.fillMaxWidth().padding(12.dp),verticalArrangement=Arrangement.spacedBy(4.dp)){
-                Text("Subtotal: "+calc.subtotal.money())
-                Text("Descontos: "+(calc.itemDiscounts+calc.generalDiscount).money(),color=Rose)
-                if(payment=="Cartão")Text("Tarifa cartão: "+calc.cardFee.money())
-                Text("TOTAL: "+calc.charged.money(),fontSize=20.sp,fontWeight=FontWeight.Bold,color=Plum)
-            }}
+            Surface(color=Lilac,shape=RoundedCornerShape(20.dp)){
+                Column(Modifier.fillMaxWidth().padding(14.dp),verticalArrangement=Arrangement.spacedBy(6.dp)){
+                    PremiumLine("Subtotal",calc.subtotal.money())
+                    PremiumLine("Descontos",(calc.itemDiscounts+calc.generalDiscount).money())
+                    if(payment=="Cartão")PremiumLine("Tarifa cartão",calc.cardFee.money())
+                    HorizontalDivider(color=Color(0xFFD9CBD3))
+                    Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween){
+                        Text("TOTAL",fontSize=18.sp,fontWeight=FontWeight.Bold,color=Plum)
+                        Text(calc.charged.money(),fontSize=22.sp,fontWeight=FontWeight.Bold,color=DeepRose)
+                    }
+                }
+            }
             if(msg.isNotBlank())Text(msg,color=if(msg.startsWith("Salvo")||msg.startsWith("Venda"))Success else MaterialTheme.colorScheme.error,fontWeight=FontWeight.SemiBold)
             Row(horizontalArrangement=Arrangement.spacedBy(8.dp)){
-                Button(onClick={if(clientId==0L||qItems.isEmpty())msg="Selecione cliente e pelo menos um produto." else{val q=currentQuote();store.upsertQuote(q);editId=q.id;createdAt=q.createdAt;version++;msg="Salvo. Você pode continuar editando."}},modifier=Modifier.weight(1f)){Text("Salvar orçamento")}
-                if(editId!=0L)OutlinedButton(onClick={clear()}){Text("Novo")}
+                Button(
+                    onClick={
+                        if(clientId==0L||qItems.isEmpty())msg="Selecione cliente e pelo menos um produto."
+                        else{
+                            val q=currentQuote();store.upsertQuote(q);editId=q.id;createdAt=q.createdAt;version++;msg="Salvo. Você pode continuar editando."
+                        }
+                    },
+                    modifier=Modifier.weight(1f),
+                    shape=RoundedCornerShape(16.dp)
+                ){Text("Salvar orçamento")}
+                if(editId!=0L)OutlinedButton(onClick={clear()},shape=RoundedCornerShape(16.dp)){Text("Novo")}
             }
         }}
-        item{Text("Orçamentos",fontWeight=FontWeight.Bold,color=Plum,fontSize=18.sp)}
+        item{Text("Orçamentos salvos",fontWeight=FontWeight.Bold,color=Plum,fontSize=18.sp)}
         items(store.quotes){q->DataCard{
             val qc=calculateQuote(q)
-            Text("#"+q.id.toString().takeLast(6)+" • "+q.clientName,fontWeight=FontWeight.Bold)
-            Text(qc.charged.money()+" • "+q.payment+(if(q.payment=="Cartão")" "+q.installments+"x" else ""),color=Rose)
-            Text(if(q.finalized)"Venda finalizada" else "Editável",color=if(q.finalized)Success else Plum,fontWeight=FontWeight.SemiBold)
+            Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){
+                Surface(color=if(q.finalized)Color(0xFFE7F3ED) else Blush,shape=RoundedCornerShape(14.dp)){
+                    Icon(Icons.Default.ReceiptLong,null,tint=if(q.finalized)Success else Rose,modifier=Modifier.padding(9.dp))
+                }
+                Spacer(Modifier.width(10.dp))
+                Column(Modifier.weight(1f)){
+                    Text("#"+q.id.toString().takeLast(6)+" • "+q.clientName,fontWeight=FontWeight.Bold,color=Ink)
+                    Text(qc.charged.money()+" • "+q.payment+(if(q.payment=="Cartão")" "+q.installments+"x" else ""),color=Rose,fontSize=12.sp)
+                    Text(if(q.finalized)"Venda finalizada" else "Editável",color=if(q.finalized)Success else Plum,fontWeight=FontWeight.SemiBold,fontSize=12.sp)
+                }
+            }
             Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(4.dp)){
                 if(!q.finalized)TextButton(onClick={editId=q.id;createdAt=q.createdAt;clientId=q.clientId;clientName=q.clientName;qItems.clear();qItems.addAll(q.items.map{it.copy()});discountType=q.discountType;discountValue=q.discountValue.toString().replace('.',',');payment=q.payment;installments=q.installments.toString();cardFee=q.cardFeePercent.toString().replace('.',',');passFee=q.passCardFee;notes=q.notes;msg=""}){Text("Editar")}
-                TextButton(onClick={PdfUtil.shareQuote(context,store.company,store.clients.firstOrNull{it.id==q.clientId},q)}){Text("PDF")}
+                TextButton(onClick={PdfUtil.shareQuote(context,store.company,store.clients.firstOrNull{it.id==q.clientId},q)}){Text("Gerar PDF")}
                 if(!q.finalized)TextButton(onClick={val err=store.finalizeQuote(q);version++;msg=err?:"Venda finalizada e estoque baixado."}){Text("Finalizar venda")}
             }
         }}
@@ -664,18 +714,46 @@ private fun QuotesScreen(store:LotusStore){
 @Composable
 private fun SalesScreen(store:LotusStore){
     val context=androidx.compose.ui.platform.LocalContext.current
-    LazyColumn(Modifier.fillMaxSize().padding(16.dp),verticalArrangement=Arrangement.spacedBy(10.dp)){
-        item{SectionTitle("Vendas","Histórico com valores, custos, taxas e recibos")}
+    val now=Calendar.getInstance()
+    val monthSales=store.sales.filter{
+        val c=Calendar.getInstance().apply{timeInMillis=it.createdAt}
+        c.get(Calendar.MONTH)==now.get(Calendar.MONTH)&&c.get(Calendar.YEAR)==now.get(Calendar.YEAR)
+    }
+    val monthGross=monthSales.sumOf{it.chargedTotal}
+    val monthProfit=monthSales.sumOf{s->s.netRevenue-s.items.sumOf{it.qty*it.unitCostSnapshot}}
+
+    LazyColumn(Modifier.fillMaxSize().padding(16.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){
+        item{SectionTitle("Vendas","Histórico, lucro e recibos profissionais")}
+        item{
+            Row(horizontalArrangement=Arrangement.spacedBy(10.dp)){
+                PremiumMetricCard("Vendas no mês",monthSales.size.toString(),monthGross.money(),Blush,Plum,Modifier.weight(1f))
+                PremiumMetricCard("Lucro no mês",monthProfit.money(),"líquido",Color.White,Plum,Modifier.weight(1f))
+            }
+        }
         if(store.sales.isEmpty())item{DataCard{Text("Nenhuma venda finalizada ainda.",color=Rose)}}
-        items(store.sales){s->DataCard{
-            val cogs=s.items.sumOf{it.qty*it.unitCostSnapshot}
-            val profit=s.netRevenue-cogs
-            Text("#"+s.id.toString().takeLast(6)+" • "+s.clientName,fontWeight=FontWeight.Bold)
-            Text("Total cobrado: "+s.chargedTotal.money(),color=Plum,fontWeight=FontWeight.SemiBold)
-            Text("Líquido: "+s.netRevenue.money()+" • CMV: "+cogs.money())
-            Text("Lucro: "+profit.money(),color=if(profit>=0)Success else MaterialTheme.colorScheme.error,fontWeight=FontWeight.Bold)
-            Text(s.payment+(if(s.payment=="Cartão")" • "+s.installments+"x • taxa "+s.cardFeePercent+"%" else ""),fontSize=13.sp,color=Rose)
-            TextButton(onClick={PdfUtil.shareSale(context,store.company,store.clients.firstOrNull{it.id==s.clientId},s)}){Text("Gerar / enviar recibo PDF")}
+        items(store.sales){sale->DataCard{
+            val cogs=sale.items.sumOf{it.qty*it.unitCostSnapshot}
+            val profit=sale.netRevenue-cogs
+            Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){
+                Surface(color=Blush,shape=RoundedCornerShape(14.dp)){
+                    Icon(Icons.Default.ShoppingBag,null,tint=Rose,modifier=Modifier.padding(9.dp))
+                }
+                Spacer(Modifier.width(10.dp))
+                Column(Modifier.weight(1f)){
+                    Text("#"+sale.id.toString().takeLast(6)+" • "+sale.clientName,fontWeight=FontWeight.Bold,color=Ink)
+                    Text("Total ${sale.chargedTotal.money()}",color=Plum,fontWeight=FontWeight.SemiBold)
+                    Text(sale.payment+(if(sale.payment=="Cartão")" • "+sale.installments+"x • taxa "+sale.cardFeePercent+"%" else ""),fontSize=12.sp,color=Muted)
+                }
+                Surface(color=Color(0xFFE7F3ED),shape=RoundedCornerShape(50)){
+                    Text(profit.money(),Modifier.padding(horizontal=10.dp,vertical=5.dp),fontSize=11.sp,color=Success,fontWeight=FontWeight.Bold)
+                }
+            }
+            Spacer(Modifier.height(6.dp))
+            Row(horizontalArrangement=Arrangement.spacedBy(10.dp)){
+                PremiumLine("Líquido",sale.netRevenue.money())
+                PremiumLine("CMV",cogs.money())
+            }
+            TextButton(onClick={PdfUtil.shareSale(context,store.company,store.clients.firstOrNull{it.id==sale.clientId},sale)}){Text("Gerar / enviar recibo PDF")}
         }}
     }
 }
@@ -684,27 +762,58 @@ private fun SalesScreen(store:LotusStore){
 private fun CompanyScreen(store:LotusStore){
     val context=androidx.compose.ui.platform.LocalContext.current
     var version by remember{mutableIntStateOf(0)}
-    var c by remember(version){mutableStateOf(store.company.copy())}
+    var company by remember(version){mutableStateOf(store.company.copy())}
     var msg by remember{mutableStateOf("")}
     val picker=rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()){uri->
-        if(uri!=null){try{context.contentResolver.takePersistableUriPermission(uri,Intent.FLAG_GRANT_READ_URI_PERMISSION)}catch(_:Exception){};c=c.copy(logoUri=uri.toString())}
+        if(uri!=null){
+            try{context.contentResolver.takePersistableUriPermission(uri,Intent.FLAG_GRANT_READ_URI_PERMISSION)}catch(_:Exception){}
+            company=company.copy(logoUri=uri.toString())
+        }
     }
-    LazyColumn(Modifier.fillMaxSize().padding(16.dp),verticalArrangement=Arrangement.spacedBy(10.dp)){
-        item{SectionTitle("Dados da empresa","Informações usadas automaticamente em orçamentos e recibos")}
+
+    LazyColumn(Modifier.fillMaxSize().padding(16.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){
+        item{SectionTitle("Dados da empresa","Identidade usada automaticamente nos PDFs e vendas")}
+        item{
+            Card(shape=RoundedCornerShape(26.dp),colors=CardDefaults.cardColors(containerColor=Blush),elevation=CardDefaults.cardElevation(2.dp)){
+                Column(Modifier.fillMaxWidth().padding(18.dp),horizontalAlignment=Alignment.CenterHorizontally){
+                    Image(
+                        painter=painterResource(R.drawable.lotus_logo),
+                        contentDescription="Logo Lotus",
+                        modifier=Modifier.width(180.dp).height(95.dp),
+                        contentScale=ContentScale.Fit
+                    )
+                    Text(company.name.ifBlank{"Lotus Distribuidora"},fontWeight=FontWeight.Bold,color=Plum,fontSize=18.sp)
+                    Text("Produtos para estética profissional",fontSize=12.sp,color=Rose)
+                }
+            }
+        }
         item{FormCard{
-            Field("Nome da empresa",c.name){c=c.copy(name=it)}
-            Field("CNPJ / documento",c.document){c=c.copy(document=it)}
-            Field("Telefone / WhatsApp",c.phone){c=c.copy(phone=it)}
-            Field("E-mail",c.email,keyboard=KeyboardType.Email){c=c.copy(email=it)}
-            Field("Endereço",c.address){c=c.copy(address=it)}
+            Text("Dados institucionais",fontWeight=FontWeight.Bold,color=Plum,fontSize=18.sp)
+            Field("Nome da empresa",company.name){company=company.copy(name=it)}
+            Field("CNPJ / documento",company.document){company=company.copy(document=it)}
+            Field("Telefone / WhatsApp",company.phone){company=company.copy(phone=it)}
+            Field("E-mail",company.email,keyboard=KeyboardType.Email){company=company.copy(email=it)}
+            Field("Endereço",company.address){company=company.copy(address=it)}
             HorizontalDivider()
             Text("Vendedor responsável",fontWeight=FontWeight.Bold,color=Plum)
-            Field("Nome do vendedor",c.sellerName){c=c.copy(sellerName=it)}
-            Field("Contato do vendedor",c.sellerPhone){c=c.copy(sellerPhone=it)}
-            Field("Chave Pix",c.pixKey){c=c.copy(pixKey=it)}
-            OutlinedButton(onClick={picker.launch(arrayOf("image/*"))},modifier=Modifier.fillMaxWidth()){Text(if(c.logoUri.isBlank())"Selecionar logo da Lotus" else "Trocar logo selecionada")}
-            Button(onClick={store.saveCompany(c);version++;msg="Dados salvos."},modifier=Modifier.fillMaxWidth()){Text("Salvar dados da empresa")}
+            Field("Nome do vendedor",company.sellerName){company=company.copy(sellerName=it)}
+            Field("Contato do vendedor",company.sellerPhone){company=company.copy(sellerPhone=it)}
+            Field("Chave Pix",company.pixKey){company=company.copy(pixKey=it)}
+            OutlinedButton(onClick={picker.launch(arrayOf("image/*"))},modifier=Modifier.fillMaxWidth(),shape=RoundedCornerShape(16.dp)){
+                Text(if(company.logoUri.isBlank())"Usar outra logo" else "Trocar logo personalizada")
+            }
+            Button(
+                onClick={store.saveCompany(company);version++;msg="Dados salvos."},
+                modifier=Modifier.fillMaxWidth(),
+                shape=RoundedCornerShape(16.dp)
+            ){Text("Salvar dados da empresa")}
             if(msg.isNotBlank())Text(msg,color=Success,fontWeight=FontWeight.SemiBold)
         }}
+        item{
+            DataCard{
+                Text("Padrão dos documentos",fontWeight=FontWeight.Bold,color=Plum)
+                Text("Orçamentos e recibos usam o logo oficial, layout A4, tabela com linhas, dados do cliente e totais alinhados.",fontSize=13.sp,color=Muted)
+            }
+        }
     }
 }
