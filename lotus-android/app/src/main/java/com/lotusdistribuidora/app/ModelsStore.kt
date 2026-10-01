@@ -74,7 +74,7 @@ class LotusStore(private val context: Context) {
     private fun loadQuotes()=readArray("quotes"){quoteFromJson(it)}
     private fun loadSales()=readArray("sales"){saleFromJson(it)}
     private fun loadCompany()=try{prefs.getString("company",null)?.let{companyFromJson(JSONObject(it))}?:Company()}catch(_:Exception){Company()}
-    private fun <T> readArray(key:String,f:(JSONObject)->T):List<T>=try{val a=JSONArray(prefs.getString(key,"[]")?:"[]");(0 until a.length()).map{f(a.getJSONObject(it))}}catch(_:Exception){emptyList()}
+    private fun <T> readArray(key:String,f:(JSONObject)->T):List<T> = try{val a=JSONArray(prefs.getString(key,"[]")?:"[]");(0 until a.length()).map{f(a.getJSONObject(it))}}catch(_:Exception){emptyList()}
 
     private fun itemJson(i:QuoteItem)=JSONObject().put("productId",i.productId).put("productName",i.productName).put("qty",i.qty).put("unitPrice",i.unitPrice).put("itemDiscountPercent",i.itemDiscountPercent).put("unitCostSnapshot",i.unitCostSnapshot)
     private fun itemFrom(o:JSONObject)=QuoteItem(o.getLong("productId"),o.optString("productName"),o.optInt("qty"),o.optDouble("unitPrice"),o.optDouble("itemDiscountPercent"),o.optDouble("unitCostSnapshot"))
