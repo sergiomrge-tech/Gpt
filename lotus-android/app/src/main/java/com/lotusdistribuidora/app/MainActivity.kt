@@ -936,7 +936,7 @@ private fun QuotesScreen(store:LotusStore){
 
             if(isCreditPayment(payment)){
                 if(payment=="Crédito parcelado"){
-                    Field("Parcelas",installments,KeyboardType.Number){installments=it}
+                    Field("Parcelas",installments,keyboard=KeyboardType.Number){installments=it}
                 }
                 Text(
                     "A taxa será calculada automaticamente na finalização, usando o valor pago pelo cliente e o valor líquido recebido.",
